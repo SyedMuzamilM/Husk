@@ -6,6 +6,7 @@
 import Foundation
 
 actor AppUninstallService {
+    /// Fast listing — does **not** recursively size every app.
     func listApplications() async -> [AppEntry] {
         let roots = [
             "/Applications",
@@ -23,10 +24,10 @@ actor AppUninstallService {
                 let bundle = Bundle(url: url)
                 let bid = bundle?.bundleIdentifier
                 let version = bundle?.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String
-                let display = bundle?.object(forInfoDictionaryKey: "CFBundleName") as? String
+                let display = (bundle?.object(forInfoDictionaryKey: "CFBundleDisplayName") as? String)
+                    ?? (bundle?.object(forInfoDictionaryKey: "CFBundleName") as? String)
                     ?? name.replacingOccurrences(of: ".app", with: "")
 
-                let size = (try? DirectorySizer.size(of: url).bytes) ?? 0
                 let isSystem = path.hasPrefix("/System") || (bid?.hasPrefix("com.apple.") == true)
 
                 apps.append(
@@ -36,7 +37,7 @@ actor AppUninstallService {
                         path: path,
                         bundleIdentifier: bid,
                         version: version,
-                        byteCount: size,
+                        byteCount: 0,
                         isFromSystem: isSystem
                     )
                 )
@@ -48,12 +49,15 @@ actor AppUninstallService {
         }
     }
 
+    func sizeOfApp(at path: String) async -> Int64 {
+        (try? DirectorySizer.size(of: URL(fileURLWithPath: path)).bytes) ?? 0
+    }
+
     func findLeftovers(for app: AppEntry) async -> [LeftoverItem] {
         guard let bid = app.bundleIdentifier, !bid.isEmpty else {
-            return heuristicNameSearch(appName: app.name)
+            return await heuristicNameSearch(appName: app.name)
         }
 
-        var results: [LeftoverItem] = []
         let home = NSHomeDirectory()
         let lib = (home as NSString).appendingPathComponent("Library")
 
@@ -70,6 +74,7 @@ actor AppUninstallService {
         ]
 
         let tokens = matchTokens(bundleID: bid, appName: app.name)
+        var candidates: [(path: String, kind: String, safety: SafetyLabel)] = []
 
         for (root, kind) in searchRoots {
             guard let children = try? FileManager.default.contentsOfDirectory(atPath: root) else { continue }
@@ -80,66 +85,78 @@ actor AppUninstallService {
                 if PathSafety.isProtected(path) { continue }
 
                 if matches(name: name, path: path, tokens: tokens, bundleID: bid) {
-                    let bytes = (try? DirectorySizer.size(of: URL(fileURLWithPath: path)).bytes) ?? 0
-                    let safety: SafetyLabel = kind == "Preferences" ? .caution : (kind == "Caches" ? .safe : .review)
-                    results.append(
-                        LeftoverItem(
-                            path: path,
-                            byteCount: bytes,
-                            kind: kind,
-                            safety: safety
-                        )
-                    )
+                    let safety: SafetyLabel =
+                        kind == "Preferences" ? .caution : (kind == "Caches" ? .safe : .review)
+                    candidates.append((path, kind, safety))
                 }
             }
         }
 
-        // Preference plists by bundle id
         let prefs = (lib as NSString).appendingPathComponent("Preferences")
         let plist = (prefs as NSString).appendingPathComponent("\(bid).plist")
-        if FileManager.default.fileExists(atPath: plist), !results.contains(where: { $0.path == plist }) {
-            let bytes = (try? DirectorySizer.fileSize(URL(fileURLWithPath: plist)).bytes) ?? 0
-            results.append(
-                LeftoverItem(path: plist, byteCount: bytes, kind: "Preferences", safety: .caution)
-            )
+        if FileManager.default.fileExists(atPath: plist),
+           !candidates.contains(where: { $0.path == plist }) {
+            candidates.append((plist, "Preferences", .caution))
         }
 
-        return results.sorted { $0.byteCount > $1.byteCount }
+        // Cap and size concurrently (sizing Containers fully was a major hang).
+        let limited = Array(candidates.prefix(40))
+
+        return await withTaskGroup(of: LeftoverItem?.self) { group in
+            for c in limited {
+                group.addTask {
+                    let bytes = (try? DirectorySizer.size(of: URL(fileURLWithPath: c.path)).bytes) ?? 0
+                    return LeftoverItem(
+                        path: c.path,
+                        byteCount: bytes,
+                        kind: c.kind,
+                        safety: c.safety
+                    )
+                }
+            }
+            var results: [LeftoverItem] = []
+            for await item in group {
+                if let item { results.append(item) }
+            }
+            return results.sorted { $0.byteCount > $1.byteCount }
+        }
     }
 
     private func matchTokens(bundleID: String, appName: String) -> [String] {
         var tokens = Set<String>()
         tokens.insert(bundleID.lowercased())
         let parts = bundleID.split(separator: ".")
-        if let last = parts.last { tokens.insert(String(last).lowercased()) }
+        if let last = parts.last, last.count >= 3 { tokens.insert(String(last).lowercased()) }
         if parts.count >= 2 {
-            tokens.insert(parts.suffix(2).joined(separator: ".").lowercased())
+            let joined = parts.suffix(2).joined(separator: ".").lowercased()
+            if joined.count >= 5 { tokens.insert(joined) }
         }
         let cleaned = appName
             .lowercased()
             .replacingOccurrences(of: " ", with: "")
             .replacingOccurrences(of: ".app", with: "")
-        if cleaned.count >= 3 { tokens.insert(cleaned) }
+        if cleaned.count >= 4 { tokens.insert(cleaned) }
         return Array(tokens)
     }
 
     private func matches(name: String, path: String, tokens: [String], bundleID: String) -> Bool {
         let lowerName = name.lowercased()
-        let lowerPath = path.lowercased()
-        if lowerName == bundleID.lowercased() { return true }
-        if lowerName.hasPrefix(bundleID.lowercased()) { return true }
-        for token in tokens where token.count >= 3 {
-            if lowerName == token || lowerName.contains(token) || lowerPath.contains("/\(token)") {
-                // Avoid ultra-generic tokens
-                if token == "app" || token == "com" || token == "org" { continue }
+        let bid = bundleID.lowercased()
+        if lowerName == bid { return true }
+        if lowerName.hasPrefix(bid) { return true }
+        // Prefer prefix/exact over loose contains to reduce false positives.
+        for token in tokens where token.count >= 4 {
+            if token == "app" || token == "com" || token == "org" || token == "net" { continue }
+            if lowerName == token || lowerName.hasPrefix(token) || lowerName.contains(".\(token)") {
                 return true
             }
+            if lowerName.hasPrefix(token + ".") { return true }
         }
+        _ = path
         return false
     }
 
-    private func heuristicNameSearch(appName: String) -> [LeftoverItem] {
-        // Minimal fallback when no bundle id
+    private func heuristicNameSearch(appName: String) async -> [LeftoverItem] {
         let cleaned = appName.replacingOccurrences(of: ".app", with: "")
         guard cleaned.count >= 3 else { return [] }
         let support = (NSHomeDirectory() as NSString)

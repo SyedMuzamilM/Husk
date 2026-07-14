@@ -79,8 +79,16 @@ open ~/Library/Developer/Xcode/DerivedData/Husk-*/Build/Products/Debug/Husk.app
 
 - FDA detection is heuristic (may false-negative)  
 - Leftover matching can false-positive on common name tokens — always review paths  
-- Treemap is not a full recursive DaisyDisk-class map yet  
+- Treemap is one-level-at-a-time (drill to go deeper), not a full DaisyDisk deep map  
 - No update feed / notarized DMG yet  
+
+## Fixes in 0.1.1 (stability)
+
+- Fixed crash `Duplicate values for key: 'user-caches'` after Clean scan / dictionary uniqueness bugs  
+- Clean scan no longer hangs forever — concurrent `/usr/bin/du` sizing + safe grouping  
+- Analyze no longer freezes on Home — concurrent child sizing, cancel, Library-first default  
+- Apps uninstall no longer crashes on duplicate leftover paths  
+- App list no longer recursive-sizes every app at once  
 
 ---
 

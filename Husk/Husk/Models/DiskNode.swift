@@ -42,7 +42,12 @@ final class DiskNode: Identifiable, @unchecked Sendable {
 
     func addChild(_ child: DiskNode) {
         children.append(child)
+        // Keep root total as sum of children for treemap share.
         byteCount += child.byteCount
+    }
+
+    func setByteCount(_ value: Int64) {
+        byteCount = value
     }
 
     func finalizeSizeFromChildren() {

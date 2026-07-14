@@ -6,7 +6,6 @@
 import Foundation
 
 enum PathSafety: Sendable {
-    /// Paths that must never be offered for deletion.
     private static let absoluteDenyPrefixes: [String] = [
         "/System",
         "/usr",
@@ -56,11 +55,20 @@ enum PathSafety: Sendable {
             }
         }
 
-        // Never allow deleting the Husk app itself mid-scan edge cases
         if standardized.contains("/Husk.app") {
             return true
         }
 
+        return false
+    }
+
+    /// Paths that often hang remote/cloud APIs — skip during bulk sizing.
+    static func shouldSkipForSizing(_ path: String) -> Bool {
+        let lower = path.lowercased()
+        if lower.contains("mobile documents") { return true }
+        if lower.contains("com~apple~clouddocs") { return true }
+        if lower.contains("library/cloudstorage") { return true }
+        if lower.hasSuffix("/library/caches/com.apple.bird") { return true }
         return false
     }
 
@@ -111,9 +119,29 @@ enum PathSafety: Sendable {
     }
 
     static func shouldSkipDirectoryName(_ name: String) -> Bool {
-        name == ".Trash"
-            || name == "TimesMachine.localsnapshots"
-            || name.hasPrefix(".")
-            && (name == ".DocumentRevisions-V100" || name == ".MobileBackups" || name == ".Spotlight-V100")
+        switch name {
+        case ".Trash", "TimesMachine.localsnapshots",
+             ".DocumentRevisions-V100", ".MobileBackups", ".Spotlight-V100",
+             ".fseventsd", ".TemporaryItems":
+            return true
+        default:
+            return false
+        }
+    }
+}
+
+/// Safe dictionary builders that never crash on duplicate keys.
+enum DictUtil {
+    static func uniquingFirst<K: Hashable, V>(_ pairs: [(K, V)]) -> [K: V] {
+        var result: [K: V] = [:]
+        result.reserveCapacity(pairs.count)
+        for (k, v) in pairs {
+            if result[k] == nil { result[k] = v }
+        }
+        return result
+    }
+
+    static func uniquingLast<K: Hashable, V>(_ pairs: [(K, V)]) -> [K: V] {
+        Dictionary(pairs, uniquingKeysWith: { _, new in new })
     }
 }

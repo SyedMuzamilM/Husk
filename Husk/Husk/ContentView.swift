@@ -36,11 +36,15 @@ struct ContentView: View {
         }
         .environment(permissions)
         .task {
-            refreshFreeSpace()
-        }
-        .onChange(of: section) { _, _ in
+            // After first frame only — never block process launch / Previews.
             refreshFreeSpace()
             permissions.refresh()
+        }
+        .onChange(of: section) { _, newSection in
+            refreshFreeSpace()
+            if newSection == .settings {
+                permissions.refresh()
+            }
         }
     }
 
@@ -59,7 +63,7 @@ struct ContentView: View {
     }
 }
 
-#Preview {
+#Preview("Husk Shell") {
     ContentView()
-        .frame(width: 1100, height: 720)
+        .frame(minWidth: 960, minHeight: 600)
 }

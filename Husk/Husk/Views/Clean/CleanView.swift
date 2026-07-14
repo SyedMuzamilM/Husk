@@ -14,6 +14,12 @@ struct CleanView: View {
     var body: some View {
         VStack(spacing: 0) {
             header
+            if case .scanning(let progress) = model.phase {
+                ProgressView(value: progress.fraction)
+                    .progressViewStyle(.linear)
+                    .padding(.horizontal, 16)
+                    .padding(.bottom, 8)
+            }
             Divider()
             content
             Divider()
@@ -35,54 +41,54 @@ struct CleanView: View {
         } message: {
             Text("Items are moved to Trash only — never permanently shredded. Empty Trash in Finder when ready.")
         }
-        .onAppear {
-            if model.categories.isEmpty, !model.isScanning {
-                // idle until user starts
+        .onReceive(NotificationCenter.default.publisher(for: .huskStartCleanScan)) { _ in
+            if !model.isScanning {
+                model.startScan()
             }
         }
     }
 
     private var header: some View {
-        HStack(spacing: 12) {
-            VStack(alignment: .leading, spacing: 2) {
+        HStack(alignment: .center, spacing: 12) {
+            VStack(alignment: .leading, spacing: 4) {
                 Text("Peel the husk")
                     .font(.title2.weight(.semibold))
                 Text(subtitle)
                     .font(.callout)
                     .foregroundStyle(.secondary)
-                    .lineLimit(1)
+                    .lineLimit(2)
             }
 
-            Spacer()
+            Spacer(minLength: 12)
 
             if !permissions.hasFullDiskAccess {
                 Button {
                     permissions.openFullDiskAccessSettings()
                 } label: {
-                    Label("Grant Full Disk Access", systemImage: "lock.open")
+                    Label("Full Disk Access", systemImage: "lock.open")
                 }
-                .buttonStyle(.bordered)
+                .help("Some caches stay hidden without Full Disk Access")
             }
 
-            Button {
+            Button("Select Safe") {
                 model.selectAllSafe()
-            } label: {
-                Text("Select Safe")
             }
-            .disabled(model.categories.isEmpty || model.isScanning)
+            .disabled(model.categories.isEmpty || model.isBusy)
 
             if model.isScanning {
                 Button("Cancel", role: .cancel) {
                     model.cancelScan()
                 }
+                .keyboardShortcut(.escape, modifiers: [])
             } else {
                 Button {
                     model.startScan()
                 } label: {
-                    Label("Scan", systemImage: "arrow.clockwise")
+                    Label(model.categories.isEmpty ? "Scan" : "Rescan", systemImage: "arrow.clockwise")
                 }
                 .buttonStyle(.borderedProminent)
                 .keyboardShortcut("r", modifiers: [.command])
+                .disabled(model.isBusy)
             }
         }
         .padding(16)
@@ -91,18 +97,18 @@ struct CleanView: View {
     private var subtitle: String {
         switch model.phase {
         case .idle:
-            return "Scan regenerable caches and developer leftovers. Preview every path."
+            return "Scan regenerable caches and developer leftovers. Nothing is deleted until you choose it."
         case .scanning(let p):
-            return "Scanning… \(Int(p.fraction * 100))% · \(p.itemsFound) items · \(ByteFormat.string(for: p.bytesFound))"
+            return "Scanning… \(Int(p.fraction * 100))% · \(p.itemsFound) found · \(ByteFormat.string(for: p.bytesFound)) · \(p.currentPath)"
         case .ready:
             if let r = model.lastResult {
-                return "Found \(ByteFormat.string(for: r.totalBytes)) in \(r.allItems.count) items · \(String(format: "%.1fs", r.duration))"
+                return "Found \(ByteFormat.string(for: r.totalBytes)) across \(r.allItems.count) items in \(String(format: "%.1f", r.duration))s"
             }
             return "Review items, then move selected to Trash."
         case .trashing:
-            return "Moving to Trash…"
+            return "Moving selected items to Trash…"
         case .finished(let bytes, let count):
-            return "Moved \(count) item(s) · \(ByteFormat.string(for: bytes)) to Trash."
+            return "Moved \(count) item(s) · \(ByteFormat.string(for: bytes)) to Trash. Empty Trash in Finder when ready."
         case .failed(let message):
             return message
         }
@@ -114,25 +120,32 @@ struct CleanView: View {
         case .idle:
             EmptyStateView(
                 systemImage: "leaf",
-                title: "No husk found yet",
-                message: "Scan your Mac for regenerable caches, logs, and developer artifacts. Nothing is deleted until you choose it.",
+                title: "Ready to scan",
+                message: "Husk looks for regenerable caches, logs, Xcode data, package manager caches, and local AI models. Every path is shown before delete.",
                 actionTitle: "Scan Now"
             ) {
                 model.startScan()
             }
 
         case .scanning(let progress):
-            VStack(spacing: 20) {
+            VStack(spacing: 18) {
                 ProgressView(value: progress.fraction)
                     .progressViewStyle(.linear)
-                    .frame(maxWidth: 420)
+                    .frame(maxWidth: 360)
+                Text("\(Int(progress.fraction * 100))%")
+                    .font(.title3.monospacedDigit().weight(.semibold))
                 Text(progress.currentPath)
-                    .font(.caption.monospaced())
+                    .font(.caption)
                     .foregroundStyle(.secondary)
                     .lineLimit(2)
-                    .frame(maxWidth: 520)
+                    .multilineTextAlignment(.center)
+                    .frame(maxWidth: 420)
+                Text("\(progress.itemsFound) items · \(ByteFormat.string(for: progress.bytesFound))")
+                    .font(.callout.monospacedDigit())
+                    .foregroundStyle(.secondary)
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .padding()
 
         case .failed(let message):
             EmptyStateView(
@@ -144,12 +157,16 @@ struct CleanView: View {
                 model.startScan()
             }
 
+        case .trashing:
+            ProgressView("Moving to Trash…")
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+
         default:
             if model.categories.isEmpty {
                 EmptyStateView(
                     systemImage: "checkmark.circle",
                     title: "No husk found. Nice.",
-                    message: "Nothing large matched the current clean profiles.",
+                    message: "Nothing large matched the current clean profiles — or sizes were zero.",
                     actionTitle: "Scan Again"
                 ) {
                     model.startScan()
@@ -162,11 +179,23 @@ struct CleanView: View {
 
     private var resultsList: some View {
         VStack(spacing: 0) {
-            HStack {
+            HStack(spacing: 8) {
                 Image(systemName: "magnifyingglass")
                     .foregroundStyle(.secondary)
                 TextField("Filter by name or path", text: $model.searchText)
                     .textFieldStyle(.plain)
+                if !model.searchText.isEmpty {
+                    Button {
+                        model.searchText = ""
+                    } label: {
+                        Image(systemName: "xmark.circle.fill")
+                            .foregroundStyle(.secondary)
+                    }
+                    .buttonStyle(.plain)
+                }
+                Text(ByteFormat.string(for: model.totalBytes))
+                    .font(.caption.monospacedDigit().weight(.semibold))
+                    .foregroundStyle(.secondary)
             }
             .padding(.horizontal, 16)
             .padding(.vertical, 10)
@@ -189,9 +218,15 @@ struct CleanView: View {
                     } header: {
                         HStack {
                             Label(category.name, systemImage: category.systemImage)
+                            Text("\(category.items.count)")
+                                .font(.caption2.monospacedDigit())
+                                .padding(.horizontal, 6)
+                                .padding(.vertical, 2)
+                                .background(.quaternary, in: Capsule())
                             Spacer()
-                            SizeText(bytes: category.totalBytes)
+                            Text(ByteFormat.string(for: category.totalBytes))
                                 .font(.caption.monospacedDigit())
+                                .foregroundStyle(.secondary)
                             Button("Safe") { model.selectAll(in: category, onlySafe: true) }
                                 .buttonStyle(.borderless)
                                 .font(.caption)
@@ -208,33 +243,25 @@ struct CleanView: View {
 
     private var bottomBar: some View {
         HStack(spacing: 16) {
-            if case .scanning(let p) = model.phase {
-                ProgressView(value: p.fraction)
-                    .frame(width: 120)
-            }
-
             Text("\(model.selectedItems.count) selected")
                 .foregroundStyle(.secondary)
             SizeText(bytes: model.selectedBytes)
 
             Spacer()
 
-            Button("Clear selection") {
+            Button("Clear") {
                 model.clearSelection()
             }
-            .disabled(model.selectedIDs.isEmpty)
+            .disabled(model.selectedIDs.isEmpty || model.isBusy)
 
             Button {
                 confirmTrash = true
             } label: {
-                Label(
-                    "Move to Trash",
-                    systemImage: "trash"
-                )
+                Label("Move to Trash", systemImage: "trash")
             }
             .buttonStyle(.borderedProminent)
             .tint(.red.opacity(0.85))
-            .disabled(model.selectedItems.isEmpty || model.isScanning)
+            .disabled(model.selectedItems.isEmpty || model.isBusy)
             .keyboardShortcut(.return, modifiers: [.command])
         }
         .padding(16)
@@ -260,7 +287,7 @@ struct CleanItemRow: View {
             .accessibilityLabel(isSelected ? "Deselect" : "Select")
 
             VStack(alignment: .leading, spacing: 4) {
-                HStack {
+                HStack(spacing: 8) {
                     Text(item.name)
                         .font(.body.weight(.medium))
                         .lineLimit(1)

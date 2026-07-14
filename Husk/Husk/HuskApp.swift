@@ -14,7 +14,7 @@ struct HuskApp: App {
         .defaultSize(width: 1100, height: 720)
         .commands {
             CommandGroup(replacing: .newItem) {}
-            CommandMenu("Scan") {
+            CommandMenu("Husk") {
                 Button("Scan Clean Targets") {
                     NotificationCenter.default.post(name: .huskStartCleanScan, object: nil)
                 }
@@ -23,10 +23,20 @@ struct HuskApp: App {
         }
 
         Settings {
-            SettingsView()
-                .environment(PermissionService())
-                .frame(width: 480, height: 420)
+            SettingsPane()
         }
+    }
+}
+
+/// Isolated settings scene so we don't construct services during App `body` evaluation.
+private struct SettingsPane: View {
+    @State private var permissions = PermissionService()
+
+    var body: some View {
+        SettingsView()
+            .environment(permissions)
+            .frame(width: 480, height: 440)
+            .task { permissions.refresh() }
     }
 }
 

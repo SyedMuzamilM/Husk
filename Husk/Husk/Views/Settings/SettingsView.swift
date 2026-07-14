@@ -26,7 +26,7 @@ struct SettingsView: View {
             .frame(maxWidth: 720, alignment: .leading)
         }
         .navigationTitle("Settings")
-        .onAppear { permissions.refresh() }
+        .task { permissions.refresh() }
     }
 
     private var permissionsCard: some View {

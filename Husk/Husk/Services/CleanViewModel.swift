@@ -32,12 +32,17 @@ final class CleanViewModel {
     }
 
     var selectedItems: [CleanItem] {
-        let map = Dictionary(uniqueKeysWithValues: categories.flatMap(\.items).map { ($0.id, $0) })
-        return selectedIDs.compactMap { map[$0] }.filter(\.safety.isSelectable)
+        let all = categories.flatMap(\.items)
+        let byID = DictUtil.uniquingFirst(all.map { ($0.id, $0) })
+        return selectedIDs.compactMap { byID[$0] }.filter(\.safety.isSelectable)
     }
 
     var selectedBytes: Int64 {
         selectedItems.reduce(0) { $0 + $1.byteCount }
+    }
+
+    var totalBytes: Int64 {
+        categories.reduce(0) { $0 + $1.totalBytes }
     }
 
     var isScanning: Bool {
@@ -45,26 +50,44 @@ final class CleanViewModel {
         return false
     }
 
+    var isBusy: Bool {
+        switch phase {
+        case .scanning, .trashing: true
+        default: false
+        }
+    }
+
     func startScan() {
         scanTask?.cancel()
+        Task { await scanner.cancel() }
+
         scanTask = Task {
             phase = .scanning(
                 CleanScanProgress(fraction: 0, currentPath: "Starting…", itemsFound: 0, bytesFound: 0)
             )
             selectedIDs = []
+            categories = []
             await scanner.reset()
+
+            // Throttle UI progress updates
+            let lastEmit = ProgressThrottle(interval: 0.12)
 
             do {
                 let result = try await scanner.scan { [weak self] progress in
+                    guard let self else { return }
                     Task { @MainActor in
-                        self?.phase = .scanning(progress)
+                        if lastEmit.shouldEmit(force: progress.fraction >= 1) {
+                            self.phase = .scanning(progress)
+                        }
                     }
                 }
-                guard !Task.isCancelled else { return }
+                guard !Task.isCancelled else {
+                    phase = categories.isEmpty ? .idle : .ready
+                    return
+                }
                 lastResult = result
                 categories = result.categories
                 expandedCategories = Set(result.categories.map(\.id))
-                // Preselect only Safe items under a size threshold? Prefer none selected for safety.
                 selectedIDs = []
                 phase = .ready
             } catch is CancellationError {
@@ -121,14 +144,14 @@ final class CleanViewModel {
         phase = .trashing
 
         let paths = items.map(\.path)
-        let lookup = Dictionary(uniqueKeysWithValues: items.map { ($0.path, $0.byteCount) })
+        // Paths can theoretically collide — never use uniqueKeysWithValues.
+        let lookup = DictUtil.uniquingLast(items.map { ($0.path, $0.byteCount) })
 
         do {
             let result = try await Task.detached(priority: .userInitiated) {
                 try TrashService.moveToTrash(paths: paths, byteLookup: lookup)
             }.value
 
-            // Remove successful from UI
             let success = Set(result.successPaths)
             categories = categories.compactMap { cat in
                 let remaining = cat.items.filter { !success.contains($0.path) }
@@ -145,5 +168,27 @@ final class CleanViewModel {
         } catch {
             phase = .failed(error.localizedDescription)
         }
+    }
+}
+
+/// Simple main-actor-friendly throttle for progress UI.
+final class ProgressThrottle: @unchecked Sendable {
+    private let interval: TimeInterval
+    private var last: CFAbsoluteTime = 0
+    private let lock = NSLock()
+
+    init(interval: TimeInterval) {
+        self.interval = interval
+    }
+
+    func shouldEmit(force: Bool = false) -> Bool {
+        lock.lock()
+        defer { lock.unlock() }
+        let now = CFAbsoluteTimeGetCurrent()
+        if force || now - last >= interval {
+            last = now
+            return true
+        }
+        return false
     }
 }

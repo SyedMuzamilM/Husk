@@ -17,80 +17,80 @@ struct CleanTarget: Sendable {
 
 /// Concurrent, cancellable scanner for regenerable caches and developer artifacts.
 actor CleanScanner {
-    private var cancelled = false
+    private let cancelFlag = CancelFlag()
 
     func cancel() {
-        cancelled = true
+        cancelFlag.cancel()
     }
 
     func reset() {
-        cancelled = false
+        cancelFlag.reset()
     }
 
     func scan(
         progress: @Sendable @escaping (CleanScanProgress) -> Void
     ) async throws -> CleanScanResult {
-        cancelled = false
+        cancelFlag.reset()
         let started = Date()
         let targets = Self.buildTargets()
-        var collected: [CleanItem] = []
-        collected.reserveCapacity(targets.count)
-
         let total = max(targets.count, 1)
+        let flag = cancelFlag
 
-        for (index, target) in targets.enumerated() {
-            try checkCancel()
-
-            progress(
-                CleanScanProgress(
-                    fraction: Double(index) / Double(total),
-                    currentPath: target.path,
-                    itemsFound: collected.count,
-                    bytesFound: collected.reduce(0) { $0 + $1.byteCount }
-                )
+        progress(
+            CleanScanProgress(
+                fraction: 0,
+                currentPath: "Preparing \(targets.count) targets…",
+                itemsFound: 0,
+                bytesFound: 0
             )
+        )
 
-            let url = URL(fileURLWithPath: target.path)
-            guard FileManager.default.fileExists(atPath: target.path) else { continue }
+        let collected: [CleanItem] = try await withThrowingTaskGroup(of: CleanItem?.self) { group in
+            var iterator = targets.makeIterator()
+            var inFlight = 0
+            let maxConcurrent = 6
+            var done = 0
+            var items: [CleanItem] = []
+            items.reserveCapacity(min(targets.count, 256))
 
-            if PathSafety.isProtected(target.path) { continue }
-
-            do {
-                let sized = try DirectorySizer.size(of: url) { [cancelled] in
-                    cancelled
+            func enqueueNext() {
+                while inFlight < maxConcurrent, let target = iterator.next() {
+                    inFlight += 1
+                    group.addTask {
+                        try await Self.measure(target: target, flag: flag)
+                    }
                 }
-                guard sized.bytes > 0 else { continue }
-
-                let classification: (SafetyLabel, String)
-                if let s = target.safetyOverride, let r = target.reasonOverride {
-                    classification = (s, r)
-                } else {
-                    classification = PathSafety.classifyCachePath(target.path)
-                }
-
-                guard classification.0 != .protected else { continue }
-
-                let item = CleanItem(
-                    name: target.name,
-                    path: target.path,
-                    categoryID: target.categoryID,
-                    categoryName: target.categoryName,
-                    byteCount: sized.bytes,
-                    safety: classification.0,
-                    reason: classification.1,
-                    modified: sized.modified
-                )
-                collected.append(item)
-            } catch is CancellationError {
-                throw CancellationError()
-            } catch {
-                // Skip unreadable targets (permissions) without failing the whole scan
-                continue
             }
+
+            enqueueNext()
+
+            for try await result in group {
+                inFlight -= 1
+                done += 1
+                if flag.isCancelled { throw CancellationError() }
+
+                if let result {
+                    items.append(result)
+                }
+
+                let bytesFound = items.reduce(Int64(0)) { $0 + $1.byteCount }
+                progress(
+                    CleanScanProgress(
+                        fraction: min(1, Double(done) / Double(total)),
+                        currentPath: result?.name ?? "Scanning…",
+                        itemsFound: items.count,
+                        bytesFound: bytesFound
+                    )
+                )
+                enqueueNext()
+            }
+
+            return items
         }
 
-        try checkCancel()
+        if flag.isCancelled { throw CancellationError() }
 
+        let categories = Self.group(items: collected)
         progress(
             CleanScanProgress(
                 fraction: 1,
@@ -100,7 +100,6 @@ actor CleanScanner {
             )
         )
 
-        let categories = Self.group(items: collected, targets: targets)
         return CleanScanResult(
             categories: categories,
             scannedAt: Date(),
@@ -108,33 +107,87 @@ actor CleanScanner {
         )
     }
 
-    private func checkCancel() throws {
-        if cancelled { throw CancellationError() }
+    private static func measure(target: CleanTarget, flag: CancelFlag) async throws -> CleanItem? {
+        if flag.isCancelled { throw CancellationError() }
+        guard FileManager.default.fileExists(atPath: target.path) else { return nil }
+        if PathSafety.isProtected(target.path) { return nil }
+        if PathSafety.shouldSkipForSizing(target.path) { return nil }
+
+        do {
+            let sized = try DirectorySizer.size(
+                of: URL(fileURLWithPath: target.path),
+                shouldCancel: { flag.isCancelled }
+            )
+            guard sized.bytes > 0 else { return nil }
+
+            let classification: (SafetyLabel, String)
+            if let s = target.safetyOverride, let r = target.reasonOverride {
+                classification = (s, r)
+            } else {
+                classification = PathSafety.classifyCachePath(target.path)
+            }
+            guard classification.0 != .protected else { return nil }
+
+            return CleanItem(
+                name: target.name,
+                path: target.path,
+                categoryID: target.categoryID,
+                categoryName: target.categoryName,
+                byteCount: sized.bytes,
+                safety: classification.0,
+                reason: classification.1,
+                modified: sized.modified
+            )
+        } catch is CancellationError {
+            throw CancellationError()
+        } catch {
+            return nil
+        }
     }
 
-    private static func group(items: [CleanItem], targets: [CleanTarget]) -> [CleanCategory] {
-        let order = targets.map(\.categoryID)
-        var uniqueOrder: [String] = []
-        var seen = Set<String>()
-        for id in order where !seen.contains(id) {
-            seen.insert(id)
-            uniqueOrder.append(id)
+    /// Groups items by category — safe with many items sharing the same category id.
+    private static func group(items: [CleanItem]) -> [CleanCategory] {
+        let preferredOrder = [
+            "user-caches", "browsers", "logs", "developer",
+            "package-managers", "local-ai", "trash"
+        ]
+
+        var buckets: [String: [CleanItem]] = [:]
+        var meta: [String: (name: String, image: String)] = [:]
+
+        for item in items {
+            buckets[item.categoryID, default: []].append(item)
+            if meta[item.categoryID] == nil {
+                meta[item.categoryID] = (item.categoryName, icon(for: item.categoryID))
+            }
         }
 
-        let meta: [String: (name: String, image: String)] = Dictionary(
-            uniqueKeysWithValues: targets.map { ($0.categoryID, ($0.categoryName, $0.systemImage)) }
-        )
+        var orderedIDs = preferredOrder.filter { buckets[$0] != nil }
+        for id in buckets.keys where !orderedIDs.contains(id) {
+            orderedIDs.append(id)
+        }
 
-        return uniqueOrder.compactMap { id in
-            let catItems = items
-                .filter { $0.categoryID == id }
-                .sorted {
-                    if $0.safety != $1.safety { return $0.safety < $1.safety }
-                    return $0.byteCount > $1.byteCount
-                }
-            guard !catItems.isEmpty else { return nil }
+        return orderedIDs.compactMap { id in
+            guard var catItems = buckets[id], !catItems.isEmpty else { return nil }
+            catItems.sort {
+                if $0.safety != $1.safety { return $0.safety < $1.safety }
+                return $0.byteCount > $1.byteCount
+            }
             let m = meta[id] ?? (id, "folder")
             return CleanCategory(id: id, name: m.name, systemImage: m.image, items: catItems)
+        }
+    }
+
+    private static func icon(for categoryID: String) -> String {
+        switch categoryID {
+        case "user-caches": "internaldrive"
+        case "browsers": "globe"
+        case "logs": "doc.text"
+        case "developer": "hammer"
+        case "package-managers": "shippingbox"
+        case "local-ai": "brain"
+        case "trash": "trash"
+        default: "folder"
         }
     }
 
@@ -143,215 +196,132 @@ actor CleanScanner {
         let lib = (home as NSString).appendingPathComponent("Library")
         var list: [CleanTarget] = []
 
-        // User caches — enumerate top-level entries for transparency
+        func add(
+            _ categoryID: String,
+            _ categoryName: String,
+            _ image: String,
+            _ name: String,
+            _ path: String,
+            safety: SafetyLabel? = nil,
+            reason: String? = nil
+        ) {
+            list.append(
+                CleanTarget(
+                    categoryID: categoryID,
+                    categoryName: categoryName,
+                    systemImage: image,
+                    name: name,
+                    path: path,
+                    safetyOverride: safety,
+                    reasonOverride: reason
+                )
+            )
+        }
+
         let userCaches = (lib as NSString).appendingPathComponent("Caches")
         if let children = try? FileManager.default.contentsOfDirectory(atPath: userCaches) {
-            for name in children.sorted() {
-                if name.hasPrefix(".") { continue }
-                let path = (userCaches as NSString).appendingPathComponent(name)
-                list.append(
-                    CleanTarget(
-                        categoryID: "user-caches",
-                        categoryName: "User Caches",
-                        systemImage: "internaldrive",
-                        name: name,
-                        path: path,
-                        safetyOverride: nil,
-                        reasonOverride: nil
-                    )
+            for name in children.sorted() where !name.hasPrefix(".") {
+                add(
+                    "user-caches", "User Caches", "internaldrive", name,
+                    (userCaches as NSString).appendingPathComponent(name)
                 )
             }
         }
 
-        // Logs
         let logs = (lib as NSString).appendingPathComponent("Logs")
         if let children = try? FileManager.default.contentsOfDirectory(atPath: logs) {
-            for name in children.sorted() {
-                if name.hasPrefix(".") { continue }
-                let path = (logs as NSString).appendingPathComponent(name)
-                list.append(
-                    CleanTarget(
-                        categoryID: "logs",
-                        categoryName: "Logs",
-                        systemImage: "doc.text",
-                        name: name,
-                        path: path,
-                        safetyOverride: .safe,
-                        reasonOverride: "Log files — safe to remove"
-                    )
+            for name in children.sorted() where !name.hasPrefix(".") {
+                add(
+                    "logs", "Logs", "doc.text", name,
+                    (logs as NSString).appendingPathComponent(name),
+                    safety: .safe,
+                    reason: "Log files — safe to remove"
                 )
             }
         }
 
-        // Browsers
-        let browserPaths: [(String, String)] = [
+        let browsers: [(String, String)] = [
             ("Safari", (lib as NSString).appendingPathComponent("Caches/com.apple.Safari")),
             ("Chrome", (home as NSString).appendingPathComponent("Library/Caches/Google/Chrome")),
             ("Firefox", (home as NSString).appendingPathComponent("Library/Caches/Firefox")),
-            ("Arc", (home as NSString).appendingPathComponent("Library/Caches/Arc")),
+            ("Arc", (home as NSString).appendingPathComponent("Library/Caches/Company.TheBrowserCompany.Arc")),
+            ("Arc (legacy)", (home as NSString).appendingPathComponent("Library/Caches/Arc")),
             ("Edge", (home as NSString).appendingPathComponent("Library/Caches/com.microsoft.edgemac")),
             ("Brave", (home as NSString).appendingPathComponent("Library/Caches/BraveSoftware"))
         ]
-        for (name, path) in browserPaths {
-            list.append(
-                CleanTarget(
-                    categoryID: "browsers",
-                    categoryName: "Browsers",
-                    systemImage: "globe",
-                    name: name,
-                    path: path,
-                    safetyOverride: .safe,
-                    reasonOverride: "Browser cache — recreated automatically"
-                )
+        for (name, path) in browsers {
+            add(
+                "browsers", "Browsers", "globe", name, path,
+                safety: .safe,
+                reason: "Browser cache — recreated automatically"
             )
         }
 
-        // Developer
-        let derived = (home as NSString).appendingPathComponent("Library/Developer/Xcode/DerivedData")
-        list.append(
-            CleanTarget(
-                categoryID: "developer",
-                categoryName: "Developer",
-                systemImage: "hammer",
-                name: "Xcode DerivedData",
-                path: derived,
-                safetyOverride: .review,
-                reasonOverride: "Build intermediates — recreated on next compile"
-            )
+        add(
+            "developer", "Developer", "hammer", "Xcode DerivedData",
+            (home as NSString).appendingPathComponent("Library/Developer/Xcode/DerivedData"),
+            safety: .review,
+            reason: "Build intermediates — recreated on next compile"
+        )
+        add(
+            "developer", "Developer", "hammer", "Xcode Archives",
+            (home as NSString).appendingPathComponent("Library/Developer/Xcode/Archives"),
+            safety: .caution,
+            reason: "May contain archived builds you want to keep"
+        )
+        add(
+            "developer", "Developer", "hammer", "iOS DeviceSupport",
+            (home as NSString).appendingPathComponent("Library/Developer/Xcode/iOS DeviceSupport"),
+            safety: .review,
+            reason: "Device symbols — re-downloaded when needed"
+        )
+        add(
+            "developer", "Developer", "hammer", "Simulator Caches",
+            (home as NSString).appendingPathComponent("Library/Developer/CoreSimulator/Caches"),
+            safety: .safe,
+            reason: "Simulator caches — regenerable"
         )
 
-        let archives = (home as NSString).appendingPathComponent("Library/Developer/Xcode/Archives")
-        list.append(
-            CleanTarget(
-                categoryID: "developer",
-                categoryName: "Developer",
-                systemImage: "hammer",
-                name: "Xcode Archives",
-                path: archives,
-                safetyOverride: .caution,
-                reasonOverride: "May contain archived builds you want to keep"
-            )
+        add(
+            "package-managers", "Package Managers", "shippingbox", "Homebrew Cache",
+            (home as NSString).appendingPathComponent("Library/Caches/Homebrew"),
+            safety: .safe, reason: "Homebrew download cache"
+        )
+        add(
+            "package-managers", "Package Managers", "shippingbox", "npm Cache",
+            (home as NSString).appendingPathComponent(".npm/_cacache"),
+            safety: .safe, reason: "npm package cache"
+        )
+        add(
+            "package-managers", "Package Managers", "shippingbox", "pip Cache",
+            (home as NSString).appendingPathComponent("Library/Caches/pip"),
+            safety: .safe, reason: "Python pip cache"
         )
 
-        let iosSupport = (home as NSString).appendingPathComponent("Library/Developer/Xcode/iOS DeviceSupport")
-        list.append(
-            CleanTarget(
-                categoryID: "developer",
-                categoryName: "Developer",
-                systemImage: "hammer",
-                name: "iOS DeviceSupport",
-                path: iosSupport,
-                safetyOverride: .review,
-                reasonOverride: "Device symbols — re-downloaded when needed"
-            )
+        add(
+            "local-ai", "Local AI", "brain", "Ollama Models",
+            (home as NSString).appendingPathComponent(".ollama/models"),
+            safety: .caution,
+            reason: "Local LLM weights — large re-download if removed"
+        )
+        add(
+            "local-ai", "Local AI", "brain", "LM Studio",
+            (home as NSString).appendingPathComponent(".lmstudio"),
+            safety: .caution,
+            reason: "LM Studio data and models"
         )
 
-        let simCore = (home as NSString).appendingPathComponent("Library/Developer/CoreSimulator/Caches")
-        list.append(
-            CleanTarget(
-                categoryID: "developer",
-                categoryName: "Developer",
-                systemImage: "hammer",
-                name: "Simulator Caches",
-                path: simCore,
-                safetyOverride: .safe,
-                reasonOverride: "Simulator caches — regenerable"
-            )
+        add(
+            "logs", "Logs", "doc.text", "Diagnostic Reports",
+            (lib as NSString).appendingPathComponent("Logs/DiagnosticReports"),
+            safety: .safe, reason: "Crash and diagnostic reports"
         )
 
-        // Package manager caches
-        let brew = (home as NSString).appendingPathComponent("Library/Caches/Homebrew")
-        list.append(
-            CleanTarget(
-                categoryID: "package-managers",
-                categoryName: "Package Managers",
-                systemImage: "shippingbox",
-                name: "Homebrew Cache",
-                path: brew,
-                safetyOverride: .safe,
-                reasonOverride: "Homebrew download cache"
-            )
-        )
-
-        let npm = (home as NSString).appendingPathComponent(".npm/_cacache")
-        list.append(
-            CleanTarget(
-                categoryID: "package-managers",
-                categoryName: "Package Managers",
-                systemImage: "shippingbox",
-                name: "npm Cache",
-                path: npm,
-                safetyOverride: .safe,
-                reasonOverride: "npm package cache"
-            )
-        )
-
-        let pip = (home as NSString).appendingPathComponent("Library/Caches/pip")
-        list.append(
-            CleanTarget(
-                categoryID: "package-managers",
-                categoryName: "Package Managers",
-                systemImage: "shippingbox",
-                name: "pip Cache",
-                path: pip,
-                safetyOverride: .safe,
-                reasonOverride: "Python pip cache"
-            )
-        )
-
-        // Local AI
-        let ollama = (home as NSString).appendingPathComponent(".ollama/models")
-        list.append(
-            CleanTarget(
-                categoryID: "local-ai",
-                categoryName: "Local AI",
-                systemImage: "brain",
-                name: "Ollama Models",
-                path: ollama,
-                safetyOverride: .caution,
-                reasonOverride: "Local LLM weights — large re-download if removed"
-            )
-        )
-
-        let lmstudio = (home as NSString).appendingPathComponent(".lmstudio")
-        list.append(
-            CleanTarget(
-                categoryID: "local-ai",
-                categoryName: "Local AI",
-                systemImage: "brain",
-                name: "LM Studio",
-                path: lmstudio,
-                safetyOverride: .caution,
-                reasonOverride: "LM Studio data and models"
-            )
-        )
-
-        // System user diagnostics
-        let diag = (lib as NSString).appendingPathComponent("Logs/DiagnosticReports")
-        list.append(
-            CleanTarget(
-                categoryID: "logs",
-                categoryName: "Logs",
-                systemImage: "doc.text",
-                name: "Diagnostic Reports",
-                path: diag,
-                safetyOverride: .safe,
-                reasonOverride: "Crash and diagnostic reports"
-            )
-        )
-
-        // Trash preview
-        let trash = (home as NSString).appendingPathComponent(".Trash")
-        list.append(
-            CleanTarget(
-                categoryID: "trash",
-                categoryName: "Trash",
-                systemImage: "trash",
-                name: "User Trash",
-                path: trash,
-                safetyOverride: .review,
-                reasonOverride: "Already in Trash — empty from Finder when ready"
-            )
+        add(
+            "trash", "Trash", "trash", "User Trash",
+            (home as NSString).appendingPathComponent(".Trash"),
+            safety: .review,
+            reason: "Already in Trash — empty from Finder when ready"
         )
 
         return list

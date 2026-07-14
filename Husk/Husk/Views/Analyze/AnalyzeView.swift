@@ -14,6 +14,11 @@ struct AnalyzeView: View {
     var body: some View {
         VStack(spacing: 0) {
             toolbar
+            if model.isLoading {
+                ProgressView()
+                    .controlSize(.small)
+                    .padding(.bottom, 6)
+            }
             Divider()
             breadcrumbsBar
             Divider()
@@ -21,16 +26,28 @@ struct AnalyzeView: View {
             GeometryReader { geo in
                 ZStack {
                     if model.isLoading && model.current == nil {
-                        ProgressView("Mapping disk…")
-                            .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        VStack(spacing: 12) {
+                            ProgressView()
+                            Text(model.statusText)
+                                .font(.callout)
+                                .foregroundStyle(.secondary)
+                                .multilineTextAlignment(.center)
+                            Button("Cancel") { model.cancel() }
+                        }
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
                     } else if let current = model.current {
                         let children = current.sortedChildren()
                         if children.isEmpty {
                             EmptyStateView(
                                 systemImage: "folder",
-                                title: "Empty folder",
-                                message: current.path
-                            )
+                                title: "Empty or unreadable",
+                                message: current.path,
+                                actionTitle: "Go Up"
+                            ) {
+                                if !model.pathStack.isEmpty {
+                                    model.goToBreadcrumb(index: max(0, model.breadcrumbs.count - 2))
+                                }
+                            }
                         } else {
                             TreemapView(
                                 nodes: children,
@@ -39,39 +56,41 @@ struct AnalyzeView: View {
                                 onSelect: { selectedRect = $0 },
                                 onOpen: { rect in
                                     if rect.isDirectory {
-                                        let node = DiskNode(
-                                            id: rect.nodeID,
-                                            name: rect.name,
-                                            path: rect.path,
-                                            isDirectory: true,
-                                            byteCount: rect.byteCount
+                                        model.drill(
+                                            into: DiskNode(
+                                                id: rect.nodeID,
+                                                name: rect.name,
+                                                path: rect.path,
+                                                isDirectory: true,
+                                                byteCount: rect.byteCount
+                                            )
                                         )
-                                        model.drill(into: node)
                                         selectedRect = nil
                                     }
                                 }
                             )
-                            .overlay(alignment: .bottom) {
-                                if model.isLoading {
-                                    Text(model.statusText)
-                                        .font(.caption)
-                                        .padding(8)
-                                        .background(.ultraThinMaterial, in: Capsule())
-                                        .padding()
-                                }
-                            }
                         }
                     } else {
                         EmptyStateView(
                             systemImage: "square.grid.3x3",
                             title: "Map your disk",
-                            message: "See what’s using space as a squarified treemap. Drill into folders, reveal in Finder, or move to Trash.",
-                            actionTitle: "Analyze Home"
+                            message: "See what's using space as a squarified treemap. Start with Library or Downloads for a faster map — Home can take longer.",
+                            actionTitle: "Analyze Library"
                         ) {
-                            model.scan(path: NSHomeDirectory())
+                            model.scan(
+                                path: (NSHomeDirectory() as NSString).appendingPathComponent("Library")
+                            )
                         }
                     }
                 }
+            }
+
+            if let error = model.errorMessage {
+                Text(error)
+                    .font(.caption)
+                    .foregroundStyle(.red)
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 6)
             }
 
             if let selectedRect {
@@ -80,11 +99,6 @@ struct AnalyzeView: View {
             }
         }
         .navigationTitle("Analyze")
-        .onAppear {
-            if model.root == nil {
-                model.scan()
-            }
-        }
         .confirmationDialog(
             "Move to Trash?",
             isPresented: Binding(
@@ -98,6 +112,7 @@ struct AnalyzeView: View {
                     Task { _ = await model.trash(path) }
                 }
                 confirmTrashPath = nil
+                selectedRect = nil
             }
             Button("Cancel", role: .cancel) {
                 confirmTrashPath = nil
@@ -112,7 +127,7 @@ struct AnalyzeView: View {
             VStack(alignment: .leading, spacing: 2) {
                 Text("Disk map")
                     .font(.title2.weight(.semibold))
-                Text(model.statusText.isEmpty ? "Squarified treemap of folder sizes" : model.statusText)
+                Text(model.statusText)
                     .font(.callout)
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
@@ -123,11 +138,22 @@ struct AnalyzeView: View {
                 Button("Cancel") { model.cancel() }
             }
 
-            Menu("Root") {
+            Menu("Location") {
                 Button("Home") { model.scan(path: NSHomeDirectory()) }
-                Button("Applications") { model.scan(path: "/Applications") }
-                Button("User Library") {
+                Button("Library") {
                     model.scan(path: (NSHomeDirectory() as NSString).appendingPathComponent("Library"))
+                }
+                Button("Downloads") {
+                    model.scan(path: (NSHomeDirectory() as NSString).appendingPathComponent("Downloads"))
+                }
+                Button("Documents") {
+                    model.scan(path: (NSHomeDirectory() as NSString).appendingPathComponent("Documents"))
+                }
+                Button("Applications") { model.scan(path: "/Applications") }
+                Button("User Caches") {
+                    model.scan(
+                        path: (NSHomeDirectory() as NSString).appendingPathComponent("Library/Caches")
+                    )
                 }
             }
 
@@ -145,13 +171,18 @@ struct AnalyzeView: View {
     private var breadcrumbsBar: some View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 6) {
+                if model.breadcrumbs.isEmpty {
+                    Text("No map yet")
+                        .font(.callout)
+                        .foregroundStyle(.secondary)
+                }
                 ForEach(Array(model.breadcrumbs.enumerated()), id: \.offset) { index, node in
                     if index > 0 {
                         Image(systemName: "chevron.right")
                             .font(.caption2)
                             .foregroundStyle(.secondary)
                     }
-                    Button(node.name) {
+                    Button(node.name.isEmpty ? "/" : node.name) {
                         model.goToBreadcrumb(index: index)
                         selectedRect = nil
                     }
@@ -177,9 +208,7 @@ struct AnalyzeView: View {
             }
             Spacer()
             SizeText(bytes: rect.byteCount)
-            Button("Reveal") {
-                model.reveal(rect.path)
-            }
+            Button("Reveal") { model.reveal(rect.path) }
             if rect.isDirectory {
                 Button("Open") {
                     model.drill(
@@ -193,14 +222,14 @@ struct AnalyzeView: View {
                     )
                     selectedRect = nil
                 }
+                .disabled(model.isLoading)
             }
             Button("Trash", role: .destructive) {
                 confirmTrashPath = rect.path
             }
-            .disabled(PathSafety.isProtected(rect.path))
+            .disabled(PathSafety.isProtected(rect.path) || model.isLoading)
         }
         .padding(12)
         .background(.bar)
     }
 }
-

@@ -89,9 +89,11 @@ struct AppsView: View {
                                 .lineLimit(1)
                         }
                         Spacer()
-                        Text(ByteFormat.string(for: app.byteCount))
-                            .font(.caption.monospacedDigit())
-                            .foregroundStyle(.secondary)
+                        if app.byteCount > 0 {
+                            Text(ByteFormat.string(for: app.byteCount))
+                                .font(.caption.monospacedDigit())
+                                .foregroundStyle(.secondary)
+                        }
                     }
                     .tag(app.id)
                     .contentShape(Rectangle())
