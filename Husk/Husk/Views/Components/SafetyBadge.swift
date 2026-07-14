@@ -9,9 +9,10 @@ struct SafetyBadge: View {
     let label: SafetyLabel
 
     var body: some View {
-        Label(label.title, systemImage: label.systemImage)
-            .font(.caption.weight(.semibold))
-            .padding(.horizontal, 8)
+        Text(label.title.uppercased())
+            .font(.system(size: 9, weight: .bold))
+            .tracking(0.6)
+            .padding(.horizontal, 7)
             .padding(.vertical, 3)
             .foregroundStyle(label.color)
             .background(label.color.opacity(0.14), in: Capsule())
@@ -26,7 +27,7 @@ struct SizeText: View {
     var body: some View {
         Text(ByteFormat.string(for: bytes))
             .font(monospaced ? .body.monospacedDigit().weight(.medium) : .body.weight(.medium))
-            .foregroundStyle(.primary)
+            .foregroundStyle(Color.huskPrimary)
     }
 }
 
@@ -40,41 +41,23 @@ struct EmptyStateView: View {
     var body: some View {
         VStack(spacing: 16) {
             Image(systemName: systemImage)
-                .font(.system(size: 44, weight: .light))
-                .foregroundStyle(.secondary)
-                .symbolRenderingMode(.hierarchical)
-
+                .font(.system(size: 40, weight: .light))
+                .foregroundStyle(Color.huskPrimary.opacity(0.85))
             VStack(spacing: 6) {
                 Text(title)
                     .font(.title2.weight(.semibold))
+                    .foregroundStyle(Color.huskText)
                 Text(message)
                     .font(.body)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(Color.huskTextMuted)
                     .multilineTextAlignment(.center)
-                    .frame(maxWidth: 420)
+                    .frame(maxWidth: 400)
             }
-
             if let actionTitle, let action {
-                Button(actionTitle, action: action)
-                    .buttonStyle(.borderedProminent)
-                    .controlSize(.large)
+                HuskPillButton(title: actionTitle, action: action)
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .padding(32)
-    }
-}
-
-struct CardBackground: ViewModifier {
-    func body(content: Content) -> some View {
-        content
-            .padding(16)
-            .background(.background.secondary, in: RoundedRectangle(cornerRadius: HuskTheme.cardCorner, style: .continuous))
-    }
-}
-
-extension View {
-    func huskCard() -> some View {
-        modifier(CardBackground())
     }
 }

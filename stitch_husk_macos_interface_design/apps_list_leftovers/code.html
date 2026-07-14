@@ -1,0 +1,290 @@
+<!DOCTYPE html><html lang="en" class="dark"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=JetBrains+Mono:wght@500&amp;display=swap" rel="stylesheet"><link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=block" rel="stylesheet"><script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script><meta charset="utf-8"><script id="tailwind-config">try{
+        tailwind.config = {
+          darkMode: "class",
+          theme: {
+            extend: {
+              "colors": {
+                      "secondary": "#77d6d2",
+                      "on-primary-container": "#663a00",
+                      "tertiary-container": "#8bbcaa",
+                      "surface-tint": "#ffb86e",
+                      "on-surface": "#e5e2e3",
+                      "surface-container-lowest": "#0e0e0f",
+                      "surface-bright": "#39393a",
+                      "on-primary": "#492900",
+                      "on-error-container": "#ffdad6",
+                      "primary-fixed-dim": "#ffb86e",
+                      "surface-container-low": "#1b1b1c",
+                      "on-secondary-container": "#c6fffb",
+                      "primary": "#ffc284",
+                      "surface-container-high": "#2a2a2b",
+                      "on-error": "#690005",
+                      "on-primary-fixed": "#2c1600",
+                      "surface-container-highest": "#353436",
+                      "tertiary-fixed": "#bbedda",
+                      "outline-variant": "#514439",
+                      "surface-variant": "#353436",
+                      "on-tertiary-fixed-variant": "#1f4f41",
+                      "surface-container": "#1f1f20",
+                      "on-background": "#e5e2e3",
+                      "surface-dim": "#131314",
+                      "on-secondary-fixed": "#00201f",
+                      "primary-fixed": "#ffdcbd",
+                      "primary-container": "#e8a45c",
+                      "on-tertiary": "#01382b",
+                      "inverse-surface": "#e5e2e3",
+                      "error": "#ffb4ab",
+                      "tertiary": "#a6d8c5",
+                      "on-primary-fixed-variant": "#693c00",
+                      "on-surface-variant": "#d6c3b3",
+                      "on-tertiary-fixed": "#002118",
+                      "tertiary-fixed-dim": "#9fd1be",
+                      "background": "#131314",
+                      "inverse-on-surface": "#303031",
+                      "secondary-fixed": "#94f3ee",
+                      "on-secondary": "#003735",
+                      "surface": "#131314",
+                      "on-tertiary-container": "#1c4c3e",
+                      "inverse-primary": "#87520f",
+                      "secondary-container": "#007d7a",
+                      "outline": "#9e8e7f",
+                      "secondary-fixed-dim": "#77d6d2",
+                      "on-secondary-fixed-variant": "#00504d",
+                      "error-container": "#93000a"
+              },
+              "borderRadius": {
+                      "DEFAULT": "0.25rem",
+                      "lg": "0.5rem",
+                      "xl": "0.75rem",
+                      "full": "9999px"
+              },
+              "spacing": {
+                      "gutter-md": "16px",
+                      "rail-width": "64px",
+                      "container-padding": "24px",
+                      "card-gap": "12px"
+              },
+              "fontFamily": {
+                      "headline-md": ["Inter"],
+                      "label-caps": ["Inter"],
+                      "headline-lg": ["Inter"],
+                      "body-md": ["Inter"],
+                      "data-mono": ["JetBrains Mono"]
+              },
+              "fontSize": {
+                      "headline-md": ["20px", {"lineHeight": "28px", "fontWeight": "600"}],
+                      "label-caps": ["11px", {"lineHeight": "16px", "letterSpacing": "0.05em", "fontWeight": "700"}],
+                      "headline-lg": ["28px", {"lineHeight": "34px", "letterSpacing": "-0.02em", "fontWeight": "600"}],
+                      "body-md": ["14px", {"lineHeight": "20px", "fontWeight": "400"}],
+                      "data-mono": ["13px", {"lineHeight": "16px", "letterSpacing": "-0.01em", "fontWeight": "500"}]
+              }
+            },
+          },
+        }
+    }catch(_e){}</script></head><body class="bg-surface text-on-surface font-body-md overflow-hidden selection:bg-primary-container/30">
+<!-- Atmospheric Background Shader -->
+<div class="fixed inset-0 z-0 pointer-events-none overflow-hidden">
+
+<div class="absolute inset-0 bg-gradient-to-br from-indigo-950/40 via-surface to-blue-950/20"></div>
+</div>
+<!-- Side Navigation Rail -->
+<nav class="w-rail-width h-screen fixed left-0 top-0 bg-surface/60 backdrop-blur-3xl border-r border-white/10 flex flex-col items-center py-gutter-md gap-6 z-50">
+<div class="font-headline-lg text-headline-lg text-primary mb-4 select-none">H</div>
+<div class="flex flex-col gap-4">
+<button class="text-on-surface-variant p-2 hover:bg-white/5 transition-colors scale-95 active:scale-90 rounded-full">
+<span class="material-symbols-outlined">mop</span>
+</button>
+<button class="text-on-surface-variant p-2 hover:bg-white/5 transition-colors scale-95 active:scale-90 rounded-full">
+<span class="material-symbols-outlined">analytics</span>
+</button>
+<!-- Active State for Apps -->
+<button class="bg-primary-container/20 text-primary rounded-full p-2 transition-all scale-100">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">apps</span>
+</button>
+<button class="text-on-surface-variant p-2 hover:bg-white/5 transition-colors scale-95 active:scale-90 rounded-full">
+<span class="material-symbols-outlined">speed</span>
+</button>
+<button class="text-on-surface-variant p-2 hover:bg-white/5 transition-colors scale-95 active:scale-90 rounded-full">
+<span class="material-symbols-outlined">bolt</span>
+</button>
+</div>
+<div class="mt-auto">
+<button class="text-on-surface-variant p-2 hover:bg-white/5 transition-colors scale-95 active:scale-90 rounded-full">
+<span class="material-symbols-outlined">settings</span>
+</button>
+</div>
+</nav>
+<!-- Top App Bar -->
+<header class="w-full h-12 fixed top-0 left-0 pl-rail-width flex justify-between items-center px-container-padding z-40 bg-transparent">
+<div class="font-headline-md text-headline-md text-on-surface select-none">Husk</div>
+<div class="flex gap-4 items-center">
+<button class="text-on-surface-variant hover:text-primary transition-colors cursor-default">
+<span class="material-symbols-outlined text-[18px]">close</span>
+</button>
+<button class="text-on-surface-variant hover:text-primary transition-colors cursor-default">
+<span class="material-symbols-outlined text-[18px]">remove</span>
+</button>
+<button class="text-on-surface-variant hover:text-primary transition-colors cursor-default">
+<span class="material-symbols-outlined text-[18px]">fullscreen</span>
+</button>
+</div>
+</header>
+<!-- Main Canvas -->
+<main class="ml-rail-width pt-12 h-screen flex flex-col p-container-padding relative z-10">
+<div class="flex flex-1 gap-gutter-md overflow-hidden">
+<!-- Category/App List Pane -->
+<section class="w-1/3 flex flex-col gap-card-gap overflow-hidden">
+<div class="flex flex-col gap-1 mb-4">
+<h2 class="font-headline-md text-headline-md text-on-surface">Uninstaller</h2>
+<p class="text-on-surface-variant/70 text-[13px]">Select applications to remove their core bundles and hidden leftovers.</p>
+</div>
+<div class="flex-1 glass-panel rounded-xl overflow-y-auto custom-scrollbar p-2">
+<div class="space-y-1">
+<!-- App Row: Ollama (Selected) -->
+<div class="flex items-center gap-3 p-3 bg-white/5 rounded-lg border border-white/5 cursor-pointer group">
+<div class="w-10 h-10 rounded-lg bg-surface-container flex items-center justify-center border border-white/5 shadow-lg group-hover:scale-105 transition-transform overflow-hidden">
+<img class="w-full h-full object-cover" data-alt="A minimalist tech logo for an AI tool called Ollama, featuring a stylized llama head silhouette in monochrome silver, set against a dark obsidian glass background with soft internal reflections and sharp vector lines." src="https://lh3.googleusercontent.com/aida-public/AB6AXuCo5sqDfDR2UcxzGvVNx7svGZya1boTDnzjrhTHyV6QXAVvlZO7S_eO0P5n9PF1YN3grvvX7uJ3tGFyfFSiGEK0KIZYJ9RfXAhhN-hZldtnWrRgDnhLHu91AYrboWnhYuthOoi1nNw1HaoOsM2RhwB6SKtZRsJSe9BLrt__4tPkK9i64_1be5SEA0K_B-tUON3uJES5a-NAmq-09WzJ_7PzSRa7Xdxk3ntKUKxXBmQer1uw90Uz1E06ghQSwEDI2349atHrRtrWM7U">
+</div>
+<div class="flex-1 min-w-0">
+<div class="flex justify-between items-baseline">
+<h3 class="text-on-surface font-semibold truncate">Ollama</h3>
+<span class="font-data-mono text-[11px] text-on-surface-variant">2.42 GB</span>
+</div>
+<div class="text-[11px] text-on-surface-variant/60 truncate italic">/Applications/Ollama.app</div>
+</div>
+<div class="w-4 h-4 rounded-full bg-primary flex items-center justify-center">
+<span class="material-symbols-outlined text-[12px] text-on-primary font-bold">check</span>
+</div>
+</div>
+<!-- Other Apps -->
+<div class="flex items-center gap-3 p-3 hover:bg-white/5 rounded-lg transition-colors cursor-pointer group">
+<div class="w-10 h-10 rounded-lg bg-surface-container-low flex items-center justify-center border border-white/5">
+<span class="material-symbols-outlined text-secondary">cloud</span>
+</div>
+<div class="flex-1 min-w-0">
+<div class="flex justify-between items-baseline">
+<h3 class="text-on-surface/80 font-medium truncate">Dropbox</h3>
+<span class="font-data-mono text-[11px] text-on-surface-variant">412 MB</span>
+</div>
+</div>
+</div>
+<div class="flex items-center gap-3 p-3 hover:bg-white/5 rounded-lg transition-colors cursor-pointer group">
+<div class="w-10 h-10 rounded-lg bg-surface-container-low flex items-center justify-center border border-white/5">
+<span class="material-symbols-outlined text-primary/80">video_library</span>
+</div>
+<div class="flex-1 min-w-0">
+<div class="flex justify-between items-baseline">
+<h3 class="text-on-surface/80 font-medium truncate">Handbrake</h3>
+<span class="font-data-mono text-[11px] text-on-surface-variant">128 MB</span>
+</div>
+</div>
+</div>
+<div class="flex items-center gap-3 p-3 hover:bg-white/5 rounded-lg transition-colors cursor-pointer group">
+<div class="w-10 h-10 rounded-lg bg-surface-container-low flex items-center justify-center border border-white/5">
+<span class="material-symbols-outlined text-tertiary">code</span>
+</div>
+<div class="flex-1 min-w-0">
+<div class="flex justify-between items-baseline">
+<h3 class="text-on-surface/80 font-medium truncate">Visual Studio Code</h3>
+<span class="font-data-mono text-[11px] text-on-surface-variant">1.1 GB</span>
+</div>
+</div>
+</div>
+</div>
+</div>
+</section>
+<!-- Detail Pane (Monospaced Data) -->
+<section class="flex-1 glass-panel rounded-xl flex flex-col overflow-hidden relative">
+<div class="p-6 border-b border-white/5 bg-white/2">
+<div class="flex items-center gap-4">
+<div class="w-16 h-16 rounded-xl bg-surface-container overflow-hidden border border-white/10 shadow-2xl animate-float">
+<img class="w-full h-full object-cover" data-alt="A close-up shot of a sophisticated 3D application icon, showcasing layered translucent materials and amber light refraction. The aesthetic is clean, professional, and follows Apple HIG guidelines for macOS icons." src="https://lh3.googleusercontent.com/aida-public/AB6AXuBbvbvtV-aw-U3PdQQ3ZlAFlrKaYiH_SFLDrB5rS7ONi7t_DuOlJCcwByjz_3iZDxaxBzwaVFgVjKlgBi1Shj6s5chyQdgpiSm1jW7HR-Es8lvpkYjJNwp8SjTiMFFt8zNKu9Q1oqWfPlU_6Ak6gKPJlHzhwb_ad-ZcphUEyiq4WXlSfgoKWGmA8Ti8-JK-Suw8itP7CyforL_mNBXvYIhqJ0YP8s7W1fbw96ITyBF08YKVpwEoG8t7h6u7fmNuWIcDG1cgO-e1gnI">
+</div>
+<div>
+<h2 class="text-headline-md font-headline-md">Ollama</h2>
+<p class="text-[13px] text-on-surface-variant/80">Local AI development environment</p>
+<div class="flex gap-2 mt-2">
+<span class="px-2 py-0.5 rounded-full bg-primary/10 text-primary text-[10px] font-bold uppercase tracking-wider">Version 0.3.14</span>
+<span class="px-2 py-0.5 rounded-full bg-secondary/10 text-secondary text-[10px] font-bold uppercase tracking-wider">Intel + Apple Silicon</span>
+</div>
+</div>
+</div>
+</div>
+<div class="flex-1 overflow-y-auto custom-scrollbar p-6">
+<div class="mb-4 flex items-center justify-between">
+<h4 class="font-label-caps text-label-caps text-on-surface-variant">Leftovers &amp; Binaries</h4>
+<div class="flex gap-4">
+<span class="text-[11px] text-on-surface-variant/60">2 Items Selected</span>
+<span class="text-[11px] text-primary">2.41 GB</span>
+</div>
+</div>
+<!-- Monospaced Data Table -->
+<div class="w-full font-data-mono text-data-mono">
+<div class="grid grid-cols-[32px_1fr_100px_80px] gap-4 py-3 border-b border-white/5 opacity-80 uppercase text-[10px] tracking-widest text-on-surface-variant">
+<div></div>
+<div>File Path</div>
+<div class="text-right">Size</div>
+<div class="text-right">Status</div>
+</div>
+<!-- Data Row 1 -->
+<div class="grid grid-cols-[32px_1fr_100px_80px] gap-4 py-4 items-center border-b border-white/5 hover:bg-white/5 group transition-colors px-2 -mx-2 rounded-lg">
+<div class="flex justify-center">
+<input checked="" class="rounded border-white/20 bg-transparent text-primary focus:ring-0 cursor-pointer" type="checkbox">
+</div>
+<div class="truncate text-on-surface">~/Library/Application Support/Ollama</div>
+<div class="text-right text-on-surface-variant">2.4 GB</div>
+<div class="text-right">
+<span class="text-[11px] text-[#22c55e] bg-[#22c55e]/10 px-2 py-0.5 rounded">Safe</span>
+</div>
+</div>
+<!-- Data Row 2 -->
+<div class="grid grid-cols-[32px_1fr_100px_80px] gap-4 py-4 items-center border-b border-white/5 hover:bg-white/5 group transition-colors px-2 -mx-2 rounded-lg">
+<div class="flex justify-center">
+<input checked="" class="rounded border-white/20 bg-transparent text-primary focus:ring-0 cursor-pointer" type="checkbox">
+</div>
+<div class="truncate text-on-surface">~/Library/Logs/ollama.log</div>
+<div class="text-right text-on-surface-variant">12 MB</div>
+<div class="text-right">
+<span class="text-[11px] text-[#22c55e] bg-[#22c55e]/10 px-2 py-0.5 rounded">Safe</span>
+</div>
+</div>
+<!-- Unchecked Data Row -->
+<div class="grid grid-cols-[32px_1fr_100px_80px] gap-4 py-4 items-center border-b border-white/5 hover:bg-white/5 group transition-colors px-2 -mx-2 rounded-lg opacity-60">
+<div class="flex justify-center">
+<input class="rounded border-white/20 bg-transparent text-primary focus:ring-0 cursor-pointer" type="checkbox">
+</div>
+<div class="truncate text-on-surface">/Applications/Ollama.app</div>
+<div class="text-right text-on-surface-variant">84 MB</div>
+<div class="text-right">
+<span class="text-[11px] text-primary/80 bg-primary/10 px-2 py-0.5 rounded">Bundle</span>
+</div>
+</div>
+</div>
+</div>
+<!-- Footer CTA -->
+<div class="p-6 border-t border-white/5 bg-white/2 flex justify-center">
+<button class="relative group h-14 px-12 bg-primary-container text-on-primary-container font-bold rounded-full transition-all hover:scale-105 active:scale-95 shadow-[0_0_30px_rgba(232,164,92,0.3)] hover:shadow-[0_0_40px_rgba(232,164,92,0.5)]">
+<span class="relative z-10 flex items-center gap-3">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">delete</span>
+                            Move to Trash (Bundle + Leftovers)
+                        </span>
+<div class="absolute inset-0 bg-white/20 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"></div>
+</button>
+</div>
+</section>
+</div>
+</main>
+<!-- Overlay Micro-interactions -->
+<script>
+        document.querySelectorAll('input[type="checkbox"]').forEach(checkbox => {
+            checkbox.addEventListener('change', function() {
+                const row = this.closest('.grid');
+                if(this.checked) {
+                    row.classList.remove('opacity-60');
+                } else {
+                    row.classList.add('opacity-60');
+                }
+            });
+        });
+    </script>
+</body></html>

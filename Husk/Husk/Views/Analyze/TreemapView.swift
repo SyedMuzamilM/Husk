@@ -16,39 +16,38 @@ struct TreemapView: View {
     private var rects: [TreemapRect] {
         TreemapLayout.squarify(
             nodes: nodes,
-            rect: CGRect(origin: .zero, size: size).insetBy(dx: 4, dy: 4)
+            rect: CGRect(origin: .zero, size: size).insetBy(dx: 2, dy: 2)
         )
     }
 
     var body: some View {
         ZStack(alignment: .topLeading) {
             Color.clear
-
             ForEach(rects) { rect in
                 let isSelected = selectedID == rect.nodeID
-                let color = Color.treemapPalette[rect.colorIndex % Color.treemapPalette.count]
-
-                RoundedRectangle(cornerRadius: 4, style: .continuous)
-                    .fill(color.opacity(isSelected ? 0.92 : 0.72))
+                let base = Color.treemapPalette[rect.colorIndex % Color.treemapPalette.count]
+                RoundedRectangle(cornerRadius: 8, style: .continuous)
+                    .fill(base.opacity(isSelected ? 0.95 : 0.75))
                     .overlay {
-                        RoundedRectangle(cornerRadius: 4, style: .continuous)
+                        RoundedRectangle(cornerRadius: 8, style: .continuous)
                             .strokeBorder(
-                                isSelected ? Color.primary.opacity(0.75) : Color.primary.opacity(0.10),
-                                lineWidth: isSelected ? 2 : 1
+                                isSelected ? Color.huskPrimary : Color.white.opacity(0.06),
+                                lineWidth: isSelected ? 1.5 : 1
                             )
                     }
                     .overlay(alignment: .topLeading) {
-                        if rect.width > 52, rect.height > 28 {
+                        if rect.width > 56, rect.height > 32 {
                             VStack(alignment: .leading, spacing: 2) {
                                 Text(rect.name)
-                                    .font(.caption2.weight(.semibold))
+                                    .font(.system(size: 11, weight: .semibold))
+                                    .foregroundStyle(Color.huskText.opacity(0.9))
                                     .lineLimit(1)
                                 Text(ByteFormat.string(for: rect.byteCount))
-                                    .font(.caption2.monospacedDigit())
-                                    .foregroundStyle(.primary.opacity(0.85))
+                                    .font(.system(size: 10, design: .monospaced))
+                                    .foregroundStyle(Color.huskPrimary.opacity(0.95))
                             }
-                            .padding(6)
-                            .frame(maxWidth: rect.width - 4, alignment: .leading)
+                            .padding(8)
+                            .frame(maxWidth: rect.width - 6, alignment: .leading)
                         }
                     }
                     .frame(width: max(rect.width, 1), height: max(rect.height, 1))
@@ -56,13 +55,9 @@ struct TreemapView: View {
                     .contentShape(Rectangle())
                     .onTapGesture(count: 2) {
                         onSelect(rect)
-                        if rect.isDirectory {
-                            onOpen(rect)
-                        }
+                        if rect.isDirectory { onOpen(rect) }
                     }
-                    .onTapGesture(count: 1) {
-                        onSelect(rect)
-                    }
+                    .onTapGesture(count: 1) { onSelect(rect) }
                     .help("\(rect.name)\n\(rect.path)\n\(ByteFormat.string(for: rect.byteCount))")
                     .contextMenu {
                         Button("Reveal in Finder") {
@@ -79,8 +74,6 @@ struct TreemapView: View {
                             NSPasteboard.general.setString(rect.path, forType: .string)
                         }
                     }
-                    .accessibilityLabel("\(rect.name), \(ByteFormat.string(for: rect.byteCount))")
-                    .accessibilityAddTraits(rect.isDirectory ? [.isButton] : [])
             }
         }
         .frame(width: size.width, height: size.height)

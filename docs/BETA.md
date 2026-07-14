@@ -11,7 +11,7 @@
 
 | Module | Status |
 |---|---|
-| **Clean** | Scan caches + developer/AI targets. Safety labels. Multi-select. Trash only. **Detail inspector** with content breakdown. |
+| **Clean** | Mole-inspired targets: caches, Xcode, package managers, **AI agents** (Claude/Cursor/Codex/Gemini), local models, **project artifacts** (node_modules, etc.). Icon-rail UI + detail inspector. |
 | **Analyze** | Squarified treemap (Library-first). Drill-down, reveal, trash. |
 | **Apps** | List apps, leftover discovery, uninstall to Trash. |
 | **Status** | Live CPU / memory / disk / thermal + process table, Quit / Force Quit. Samples only while visible. |

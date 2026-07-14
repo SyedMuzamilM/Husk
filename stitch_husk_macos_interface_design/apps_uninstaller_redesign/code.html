@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Husk - Application Leftovers</title>
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&amp;family=JetBrains+Mono:wght@500&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "surface-container-lowest": "#0e0e0f",
+                        "on-secondary": "#003735",
+                        "on-background": "#e5e2e3",
+                        "on-tertiary-fixed": "#002118",
+                        "surface-container-low": "#1b1b1c",
+                        "tertiary-fixed": "#bbedda",
+                        "tertiary": "#a6d8c5",
+                        "on-secondary-fixed": "#00201f",
+                        "on-primary-fixed": "#2c1600",
+                        "on-error-container": "#ffdad6",
+                        "surface-container": "#1f1f20",
+                        "outline": "#9e8e7f",
+                        "error-container": "#93000a",
+                        "surface": "#131314",
+                        "surface-dim": "#131314",
+                        "on-primary-container": "#663a00",
+                        "inverse-on-surface": "#303031",
+                        "secondary-container": "#007d7a",
+                        "on-secondary-container": "#c6fffb",
+                        "inverse-primary": "#87520f",
+                        "primary-fixed": "#ffdcbd",
+                        "error": "#ffb4ab",
+                        "inverse-surface": "#e5e2e3",
+                        "secondary": "#77d6d2",
+                        "outline-variant": "#514439",
+                        "on-primary-fixed-variant": "#693c00",
+                        "on-tertiary-container": "#1c4c3e",
+                        "on-tertiary": "#01382b",
+                        "on-error": "#690005",
+                        "primary-container": "#e8a45c",
+                        "on-primary": "#492900",
+                        "secondary-fixed": "#94f3ee",
+                        "tertiary-container": "#8bbcaa",
+                        "surface-container-high": "#2a2a2b",
+                        "primary-fixed-dim": "#ffb86e",
+                        "primary": "#ffc284",
+                        "surface-tint": "#ffb86e",
+                        "surface-variant": "#353436",
+                        "on-tertiary-fixed-variant": "#1f4f41",
+                        "on-surface": "#e5e2e3",
+                        "secondary-fixed-dim": "#77d6d2",
+                        "surface-container-highest": "#353436",
+                        "on-surface-variant": "#d6c3b3",
+                        "on-secondary-fixed-variant": "#00504d",
+                        "background": "#131314",
+                        "surface-bright": "#39393a",
+                        "tertiary-fixed-dim": "#9fd1be"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    "spacing": {
+                        "gutter-md": "16px",
+                        "container-padding": "24px",
+                        "card-gap": "12px",
+                        "rail-width": "64px"
+                    },
+                    "fontFamily": {
+                        "label-caps": ["Inter"],
+                        "body-md": ["Inter"],
+                        "headline-md": ["Inter"],
+                        "headline-lg": ["Inter"],
+                        "data-mono": ["JetBrains Mono"]
+                    },
+                    "fontSize": {
+                        "label-caps": ["11px", { "lineHeight": "16px", "letterSpacing": "0.05em", "fontWeight": "700" }],
+                        "body-md": ["14px", { "lineHeight": "20px", "fontWeight": "400" }],
+                        "headline-md": ["20px", { "lineHeight": "28px", "fontWeight": "600" }],
+                        "headline-lg": ["28px", { "lineHeight": "34px", "letterSpacing": "-0.02em", "fontWeight": "600" }],
+                        "data-mono": ["13px", { "lineHeight": "16px", "letterSpacing": "-0.01em", "fontWeight": "500" }]
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+        .glass-panel {
+            background: rgba(42, 42, 43, 0.4);
+            backdrop-filter: blur(30px) saturate(150%);
+            -webkit-backdrop-filter: blur(30px) saturate(150%);
+            border: 0.5px solid rgba(255, 255, 255, 0.1);
+            box-shadow: inset 0 1px 0 0 rgba(255, 255, 255, 0.05);
+        }
+        .bg-radial-glow {
+            background: radial-gradient(circle at 50% 50%, rgba(232, 164, 92, 0.05) 0%, rgba(19, 19, 20, 1) 70%);
+        }
+        /* Custom scrollbar for data tables */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 3px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+    </style>
+</head>
+<body class="bg-background text-on-background font-body-md min-h-screen overflow-hidden flex bg-radial-glow">
+<!-- SideNavBar -->
+<nav class="bg-surface-container-lowest/50 dark:bg-surface-container-lowest/50 backdrop-blur-2xl fixed left-0 top-0 h-full w-rail-width border-r border-white/5 flex flex-col items-center py-6 gap-8 z-50">
+<div class="flex-1 flex flex-col items-center gap-6">
+<a class="text-on-surface-variant/60 p-2 hover:text-primary hover:bg-primary/5 transition-all rounded-xl" href="#" title="Dashboard">
+<span class="material-symbols-outlined" data-icon="space_dashboard">space_dashboard</span>
+</a>
+<a class="text-on-surface-variant/60 p-2 hover:text-primary hover:bg-primary/5 transition-all rounded-xl" href="#" title="Caches">
+<span class="material-symbols-outlined" data-icon="layers">layers</span>
+</a>
+<a class="text-on-surface-variant/60 p-2 hover:text-primary hover:bg-primary/5 transition-all rounded-xl" href="#" title="Logs">
+<span class="material-symbols-outlined" data-icon="terminal">terminal</span>
+</a>
+<a class="bg-primary/10 text-primary rounded-full p-2 scale-90 duration-150" href="#" title="Artifacts">
+<span class="material-symbols-outlined" data-icon="inventory_2" style="font-variation-settings: 'FILL' 1;">inventory_2</span>
+</a>
+<a class="text-on-surface-variant/60 p-2 hover:text-primary hover:bg-primary/5 transition-all rounded-xl" href="#" title="Settings">
+<span class="material-symbols-outlined" data-icon="settings">settings</span>
+</a>
+</div>
+<div class="flex flex-col items-center gap-6 mt-auto">
+<a class="text-on-surface-variant/60 p-2 hover:text-primary hover:bg-primary/5 transition-all rounded-xl" href="#" title="Support">
+<span class="material-symbols-outlined" data-icon="help">help</span>
+</a>
+<a class="text-on-surface-variant/60 p-2 hover:text-primary hover:bg-primary/5 transition-all rounded-xl" href="#" title="About">
+<span class="material-symbols-outlined" data-icon="info">info</span>
+</a>
+</div>
+</nav>
+<!-- TopAppBar (Mobile Only - Suppressed on Desktop per guidelines) -->
+<header class="bg-surface/80 dark:bg-surface/80 backdrop-blur-3xl border-b border-white/10 md:hidden flex items-center justify-between px-gutter-md h-12 w-full fixed top-0 z-40">
+<div class="flex items-center gap-3">
+<span class="material-symbols-outlined text-primary dark:text-primary-fixed" data-icon="grid_view">grid_view</span>
+<span class="font-headline-md text-headline-md text-primary tracking-tight">Husk</span>
+</div>
+</header>
+<!-- Main Content Canvas -->
+<main class="ml-rail-width w-full h-screen p-container-padding flex flex-col gap-6 pt-16 md:pt-container-padding relative z-10">
+<!-- Header -->
+<div class="flex justify-between items-end shrink-0">
+<div>
+<h1 class="font-headline-lg text-headline-lg text-on-surface mb-2">Application Leftovers</h1>
+<p class="text-on-surface-variant text-body-md">Reviewing associated files and dependencies for complete removal.</p>
+</div>
+<div class="flex gap-3">
+<span class="px-3 py-1 rounded-full bg-secondary-container/20 text-secondary border border-secondary/20 font-label-caps text-label-caps flex items-center gap-2">
+<span class="w-1.5 h-1.5 rounded-full bg-secondary"></span>
+                    Safe to Remove
+                </span>
+</div>
+</div>
+<!-- Split Layout -->
+<div class="flex-1 flex gap-6 min-h-0">
+<!-- Left Pane: App List -->
+<div class="w-1/3 glass-panel rounded-xl flex flex-col overflow-hidden">
+<div class="p-4 border-b border-white/5 bg-white/5 flex justify-between items-center shrink-0">
+<h2 class="font-label-caps text-label-caps text-on-surface-variant">Detected Apps</h2>
+<span class="font-data-mono text-data-mono text-primary">4 Items</span>
+</div>
+<div class="flex-1 overflow-y-auto p-2 space-y-1">
+<!-- Active Item -->
+<div class="p-3 rounded-lg bg-white/10 border border-white/10 flex items-center gap-4 cursor-pointer relative overflow-hidden group">
+<div class="absolute inset-0 bg-gradient-to-r from-primary/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
+<div class="w-10 h-10 rounded-lg bg-surface flex items-center justify-center shrink-0 shadow-inner">
+<span class="material-symbols-outlined text-primary" data-icon="magic_button">magic_button</span>
+</div>
+<div class="flex-1 min-w-0">
+<div class="font-headline-md text-body-md text-on-surface truncate">Gemini</div>
+<div class="text-on-surface-variant text-xs truncate">4 Associated Files</div>
+</div>
+<div class="font-data-mono text-data-mono text-on-surface text-right shrink-0">
+                            2.4 GB
+                        </div>
+</div>
+<!-- Inactive Items -->
+<div class="p-3 rounded-lg hover:bg-white/5 flex items-center gap-4 cursor-pointer transition-colors">
+<div class="w-10 h-10 rounded-lg bg-surface-container-high flex items-center justify-center shrink-0 border border-white/5">
+<span class="material-symbols-outlined text-on-surface-variant" data-icon="description">description</span>
+</div>
+<div class="flex-1 min-w-0">
+<div class="font-headline-md text-body-md text-on-surface truncate">Pages</div>
+<div class="text-on-surface-variant text-xs truncate">12 Associated Files</div>
+</div>
+<div class="font-data-mono text-data-mono text-on-surface-variant text-right shrink-0">
+                            845 MB
+                        </div>
+</div>
+<div class="p-3 rounded-lg hover:bg-white/5 flex items-center gap-4 cursor-pointer transition-colors">
+<div class="w-10 h-10 rounded-lg bg-surface-container-high flex items-center justify-center shrink-0 border border-white/5">
+<span class="material-symbols-outlined text-on-surface-variant" data-icon="cloud">cloud</span>
+</div>
+<div class="flex-1 min-w-0">
+<div class="font-headline-md text-body-md text-on-surface truncate">Dropbox</div>
+<div class="text-on-surface-variant text-xs truncate">8 Associated Files</div>
+</div>
+<div class="font-data-mono text-data-mono text-on-surface-variant text-right shrink-0">
+                            1.2 GB
+                        </div>
+</div>
+<div class="p-3 rounded-lg hover:bg-white/5 flex items-center gap-4 cursor-pointer transition-colors">
+<div class="w-10 h-10 rounded-lg bg-surface-container-high flex items-center justify-center shrink-0 border border-white/5">
+<span class="material-symbols-outlined text-on-surface-variant" data-icon="code">code</span>
+</div>
+<div class="flex-1 min-w-0">
+<div class="font-headline-md text-body-md text-on-surface truncate">VS Code</div>
+<div class="text-on-surface-variant text-xs truncate">24 Associated Files</div>
+</div>
+<div class="font-data-mono text-data-mono text-on-surface-variant text-right shrink-0">
+                            3.1 GB
+                        </div>
+</div>
+</div>
+</div>
+<!-- Right Pane: Detail View -->
+<div class="flex-1 glass-panel rounded-xl flex flex-col overflow-hidden relative">
+<!-- 3D Preview Decoration -->
+<div class="absolute right-0 top-0 w-64 h-64 opacity-40 pointer-events-none mix-blend-screen" style="transform: translate(20%, -20%);">
+<img class="w-full h-full object-contain" data-alt="A stylized 3D render of layered frosted glass squares resembling digital files or app data stacks, illuminated with soft volumetric blue and purple lighting against a dark environment. The rendering should look premium, abstract, and technological, utilizing depth of field." src="https://lh3.googleusercontent.com/aida/AP1WRLvQMwB3XaAeD2gSz6iULvmlJiB9yGEJkam4vYzthC5KgWLX1fdYvTNiFxLCDtd0CCYnzUMB7HBwzTIg00SlvgdzrHu8Yec0eUKIgiconxwBGjnfEmco3nc4kYurYMjVw9wZDD4xchlX4x_ORixwXjTD7rxOK6Hu_1y7iYs_m3MkzSdwHg5wwUfVG5PRZ0ZQ8U0ax4EmKsovRcWVlIVfKgCBwkGljFtFjq85fW-2nvIsx2j4TGS2fnby"/>
+</div>
+<div class="p-6 border-b border-white/5 shrink-0 flex items-start gap-6 relative z-10">
+<div class="w-16 h-16 rounded-2xl bg-surface flex items-center justify-center shrink-0 shadow-lg border border-primary/20">
+<span class="material-symbols-outlined text-primary text-3xl" data-icon="magic_button">magic_button</span>
+</div>
+<div>
+<h2 class="font-headline-lg text-headline-md text-on-surface mb-1">Gemini</h2>
+<div class="flex gap-4 text-sm">
+<span class="text-on-surface-variant">Version 1.4.2</span>
+<span class="text-primary font-data-mono">2.4 GB Total</span>
+</div>
+</div>
+</div>
+<!-- Data Table -->
+<div class="flex-1 overflow-y-auto relative z-10 p-4">
+<table class="w-full text-left border-collapse">
+<thead>
+<tr>
+<th class="py-3 px-4 font-label-caps text-label-caps text-on-surface-variant w-10"></th>
+<th class="py-3 px-4 font-label-caps text-label-caps text-on-surface-variant">Path</th>
+<th class="py-3 px-4 font-label-caps text-label-caps text-on-surface-variant text-right">Size</th>
+<th class="py-3 px-4 font-label-caps text-label-caps text-on-surface-variant w-24 text-center">State</th>
+</tr>
+</thead>
+<tbody class="font-data-mono text-data-mono text-on-surface">
+<tr class="hover:bg-white/[0.02] transition-colors border-b border-white/5">
+<td class="py-3 px-4">
+<input checked="" class="rounded border-outline bg-surface-container-high text-primary focus:ring-primary focus:ring-offset-background" type="checkbox"/>
+</td>
+<td class="py-3 px-4 truncate max-w-sm text-on-surface-variant">/Applications/Gemini.app</td>
+<td class="py-3 px-4 text-right">1.8 GB</td>
+<td class="py-3 px-4">
+<div class="px-2 py-1 rounded bg-secondary-container/20 text-secondary text-xs text-center border border-secondary/20">Bundle</div>
+</td>
+</tr>
+<tr class="hover:bg-white/[0.02] transition-colors border-b border-white/5 bg-white/[0.01]">
+<td class="py-3 px-4">
+<input checked="" class="rounded border-outline bg-surface-container-high text-primary focus:ring-primary focus:ring-offset-background" type="checkbox"/>
+</td>
+<td class="py-3 px-4 truncate max-w-sm text-on-surface-variant">~/Library/Caches/com.gemini.app</td>
+<td class="py-3 px-4 text-right">450 MB</td>
+<td class="py-3 px-4">
+<div class="px-2 py-1 rounded bg-primary-container/20 text-primary-container text-xs text-center border border-primary-container/20">Cache</div>
+</td>
+</tr>
+<tr class="hover:bg-white/[0.02] transition-colors border-b border-white/5">
+<td class="py-3 px-4">
+<input checked="" class="rounded border-outline bg-surface-container-high text-primary focus:ring-primary focus:ring-offset-background" type="checkbox"/>
+</td>
+<td class="py-3 px-4 truncate max-w-sm text-on-surface-variant">~/Library/Preferences/com.gemini.plist</td>
+<td class="py-3 px-4 text-right">12 KB</td>
+<td class="py-3 px-4">
+<div class="px-2 py-1 rounded bg-secondary-container/20 text-secondary text-xs text-center border border-secondary/20">Config</div>
+</td>
+</tr>
+<tr class="hover:bg-white/[0.02] transition-colors border-b border-white/5 bg-white/[0.01]">
+<td class="py-3 px-4">
+<input checked="" class="rounded border-outline bg-surface-container-high text-primary focus:ring-primary focus:ring-offset-background" type="checkbox"/>
+</td>
+<td class="py-3 px-4 truncate max-w-sm text-on-surface-variant">~/Library/Application Support/Gemini/</td>
+<td class="py-3 px-4 text-right">150 MB</td>
+<td class="py-3 px-4">
+<div class="px-2 py-1 rounded bg-primary-container/20 text-primary-container text-xs text-center border border-primary-container/20">Data</div>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+<!-- Footer Action -->
+<div class="p-6 shrink-0 flex justify-center border-t border-white/5 bg-surface-container-lowest/30 z-10">
+<button class="bg-primary-container text-on-primary-container font-headline-md text-body-md py-3 px-8 rounded-full shadow-lg hover:bg-primary transition-colors flex items-center gap-3">
+<span class="material-symbols-outlined" data-icon="delete">delete</span>
+                        Move to Trash (Bundle + Leftovers)
+                    </button>
+</div>
+</div>
+</div>
+</main>
+</body></html>

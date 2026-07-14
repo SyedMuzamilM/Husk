@@ -32,14 +32,51 @@ actor CleanScanner {
     ) async throws -> CleanScanResult {
         cancelFlag.reset()
         let started = Date()
-        let targets = Self.buildTargets()
-        let total = max(targets.count, 1)
         let flag = cancelFlag
 
         progress(
             CleanScanProgress(
                 fraction: 0,
-                currentPath: "Preparing \(targets.count) targets…",
+                currentPath: "Preparing targets…",
+                itemsFound: 0,
+                bytesFound: 0
+            )
+        )
+
+        var targets = Self.buildTargets()
+
+        // Mole-style project purge discovery (node_modules, target, .next, …)
+        progress(
+            CleanScanProgress(
+                fraction: 0.02,
+                currentPath: "Finding project artifacts…",
+                itemsFound: 0,
+                bytesFound: 0
+            )
+        )
+        let artifacts = ProjectArtifactService.discover(maxDepth: 4, maxHits: 60) {
+            flag.isCancelled
+        }
+        if flag.isCancelled { throw CancellationError() }
+        for a in artifacts {
+            targets.append(
+                CleanTarget(
+                    categoryID: "project-artifacts",
+                    categoryName: "Project Artifacts",
+                    systemImage: "shippingbox.and.arrow.backward",
+                    name: a.name,
+                    path: a.path,
+                    safetyOverride: a.safety,
+                    reasonOverride: a.reason
+                )
+            )
+        }
+
+        let total = max(targets.count, 1)
+        progress(
+            CleanScanProgress(
+                fraction: 0.05,
+                currentPath: "Sizing \(targets.count) targets…",
                 itemsFound: 0,
                 bytesFound: 0
             )
@@ -153,7 +190,8 @@ actor CleanScanner {
     private static func group(items: [CleanItem]) -> [CleanCategory] {
         let preferredOrder = [
             "user-caches", "browsers", "logs", "developer",
-            "package-managers", "local-ai", "trash"
+            "package-managers", "ai-agents", "local-ai",
+            "project-artifacts", "ide", "trash"
         ]
 
         var buckets: [String: [CleanItem]] = [:]
@@ -189,7 +227,10 @@ actor CleanScanner {
         case "logs": "doc.text"
         case "developer": "hammer"
         case "package-managers": "shippingbox"
+        case "ai-agents": "cpu"
         case "local-ai": "brain"
+        case "project-artifacts": "shippingbox.and.arrow.backward"
+        case "ide": "chevron.left.forwardslash.chevron.right"
         case "trash": "trash"
         default: "folder"
         }
@@ -286,34 +327,131 @@ actor CleanScanner {
             reason: "Simulator caches — regenerable"
         )
 
-        add(
-            "package-managers", "Package Managers", "shippingbox", "Homebrew Cache",
+        // Package managers (Mole-aligned)
+        add("package-managers", "Package Managers", "shippingbox", "Homebrew Cache",
             (home as NSString).appendingPathComponent("Library/Caches/Homebrew"),
-            safety: .safe, reason: "Homebrew download cache"
-        )
-        add(
-            "package-managers", "Package Managers", "shippingbox", "npm Cache",
+            safety: .safe, reason: "Homebrew download cache")
+        add("package-managers", "Package Managers", "shippingbox", "npm _cacache",
             (home as NSString).appendingPathComponent(".npm/_cacache"),
-            safety: .safe, reason: "npm package cache"
-        )
-        add(
-            "package-managers", "Package Managers", "shippingbox", "pip Cache",
+            safety: .safe, reason: "npm package cache")
+        add("package-managers", "Package Managers", "shippingbox", "npm _npx",
+            (home as NSString).appendingPathComponent(".npm/_npx"),
+            safety: .safe, reason: "npx temporary package cache")
+        add("package-managers", "Package Managers", "shippingbox", "pnpm store",
+            (home as NSString).appendingPathComponent("Library/pnpm/store"),
+            safety: .safe, reason: "pnpm content-addressable store")
+        add("package-managers", "Package Managers", "shippingbox", "Yarn cache",
+            (home as NSString).appendingPathComponent("Library/Caches/Yarn"),
+            safety: .safe, reason: "Yarn package cache")
+        add("package-managers", "Package Managers", "shippingbox", "Bun install cache",
+            (home as NSString).appendingPathComponent(".bun/install/cache"),
+            safety: .safe, reason: "Bun package install cache")
+        add("package-managers", "Package Managers", "shippingbox", "pip Cache",
             (home as NSString).appendingPathComponent("Library/Caches/pip"),
-            safety: .safe, reason: "Python pip cache"
-        )
+            safety: .safe, reason: "Python pip cache")
+        add("package-managers", "Package Managers", "shippingbox", "uv cache",
+            (home as NSString).appendingPathComponent(".cache/uv"),
+            safety: .safe, reason: "uv Python package cache")
+        add("package-managers", "Package Managers", "shippingbox", "Cargo registry cache",
+            (home as NSString).appendingPathComponent(".cargo/registry/cache"),
+            safety: .safe, reason: "Rust crate download cache")
+        add("package-managers", "Package Managers", "shippingbox", "Go build cache",
+            (home as NSString).appendingPathComponent("Library/Caches/go-build"),
+            safety: .safe, reason: "Go compiler cache")
+        add("package-managers", "Package Managers", "shippingbox", "Gradle caches",
+            (home as NSString).appendingPathComponent(".gradle/caches"),
+            safety: .review, reason: "Gradle dependency caches")
+        add("package-managers", "Package Managers", "shippingbox", "CocoaPods cache",
+            (home as NSString).appendingPathComponent("Library/Caches/CocoaPods"),
+            safety: .safe, reason: "CocoaPods download cache")
+        add("package-managers", "Package Managers", "shippingbox", "Turbo cache",
+            (home as NSString).appendingPathComponent(".turbo/cache"),
+            safety: .safe, reason: "Turborepo remote/local cache")
+        add("package-managers", "Package Managers", "shippingbox", "Vite cache",
+            (home as NSString).appendingPathComponent(".cache/vite"),
+            safety: .safe, reason: "Vite bundler cache")
+        add("package-managers", "Package Managers", "shippingbox", "Webpack cache",
+            (home as NSString).appendingPathComponent(".cache/webpack"),
+            safety: .safe, reason: "Webpack cache")
+        add("package-managers", "Package Managers", "shippingbox", "Hugging Face cache",
+            (home as NSString).appendingPathComponent(".cache/huggingface"),
+            safety: .caution, reason: "ML model/dataset downloads — large re-download")
 
-        add(
-            "local-ai", "Local AI", "brain", "Ollama Models",
+        // AI coding agents & IDEs (Mole-inspired; caches only — preserve sessions/auth)
+        let support = (lib as NSString).appendingPathComponent("Application Support")
+        add("ai-agents", "AI Agents", "cpu", "Claude Code app cache",
+            (support as NSString).appendingPathComponent("Claude/Cache"),
+            safety: .safe, reason: "Claude Desktop web/app cache — sessions preserved elsewhere")
+        add("ai-agents", "AI Agents", "cpu", "Claude Code GPU cache",
+            (support as NSString).appendingPathComponent("Claude/GPUCache"),
+            safety: .safe, reason: "Claude Desktop GPU cache")
+        add("ai-agents", "AI Agents", "cpu", "Claude Code Code Cache",
+            (support as NSString).appendingPathComponent("Claude/Code Cache"),
+            safety: .safe, reason: "Claude Desktop Chromium code cache")
+        add("ai-agents", "AI Agents", "cpu", "Cursor Cache",
+            (support as NSString).appendingPathComponent("Cursor/Cache"),
+            safety: .safe, reason: "Cursor editor Chromium cache")
+        add("ai-agents", "AI Agents", "cpu", "Cursor CachedData",
+            (support as NSString).appendingPathComponent("Cursor/CachedData"),
+            safety: .safe, reason: "Cursor V8 cached data")
+        add("ai-agents", "AI Agents", "cpu", "Cursor GPUCache",
+            (support as NSString).appendingPathComponent("Cursor/GPUCache"),
+            safety: .safe, reason: "Cursor GPU cache")
+        add("ai-agents", "AI Agents", "cpu", "Cursor logs",
+            (support as NSString).appendingPathComponent("Cursor/logs"),
+            safety: .safe, reason: "Cursor application logs")
+        add("ai-agents", "AI Agents", "cpu", "Cursor Agent versions",
+            (home as NSString).appendingPathComponent(".local/share/cursor-agent/versions"),
+            safety: .review, reason: "Old Cursor Agent CLI builds — keep latest")
+        add("ai-agents", "AI Agents", "cpu", "Claude Code CLI versions",
+            (home as NSString).appendingPathComponent(".local/share/claude/versions"),
+            safety: .review, reason: "Old Claude Code CLI versions")
+        add("ai-agents", "AI Agents", "cpu", "Codex CLI temp",
+            (home as NSString).appendingPathComponent(".codex/.tmp"),
+            safety: .safe, reason: "Codex temporary files (sessions/auth preserved)")
+        add("ai-agents", "AI Agents", "cpu", "Codex CLI logs",
+            (home as NSString).appendingPathComponent(".codex/log"),
+            safety: .safe, reason: "Codex log files")
+        add("ai-agents", "AI Agents", "cpu", "Gemini CLI temp",
+            (home as NSString).appendingPathComponent(".gemini/tmp"),
+            safety: .safe, reason: "Gemini CLI temp work files")
+        add("ai-agents", "AI Agents", "cpu", "Antigravity browser cache",
+            (home as NSString).appendingPathComponent(".gemini/antigravity-browser-profile/Default/Cache"),
+            safety: .safe, reason: "Gemini Antigravity browser cache")
+        add("ai-agents", "AI Agents", "cpu", "Continue.dev cache",
+            (home as NSString).appendingPathComponent(".continue/index"),
+            safety: .review, reason: "Continue.dev index/cache")
+        add("ai-agents", "AI Agents", "cpu", "Aider cache",
+            (home as NSString).appendingPathComponent(".aider"),
+            safety: .review, reason: "Aider local cache/history — review first")
+
+        // Local AI models
+        add("local-ai", "Local AI Models", "brain", "Ollama models",
             (home as NSString).appendingPathComponent(".ollama/models"),
-            safety: .caution,
-            reason: "Local LLM weights — large re-download if removed"
-        )
-        add(
-            "local-ai", "Local AI", "brain", "LM Studio",
+            safety: .caution, reason: "Local LLM weights — large re-download if removed")
+        add("local-ai", "Local AI Models", "brain", "LM Studio",
             (home as NSString).appendingPathComponent(".lmstudio"),
-            safety: .caution,
-            reason: "LM Studio data and models"
-        )
+            safety: .caution, reason: "LM Studio models and data")
+        add("local-ai", "Local AI Models", "brain", "Hugging Face hub",
+            (home as NSString).appendingPathComponent(".cache/huggingface/hub"),
+            safety: .caution, reason: "Downloaded HF models")
+
+        // IDEs
+        add("ide", "Editors & IDEs", "chevron.left.forwardslash.chevron.right", "VS Code Cache",
+            (support as NSString).appendingPathComponent("Code/Cache"),
+            safety: .safe, reason: "VS Code Chromium cache")
+        add("ide", "Editors & IDEs", "chevron.left.forwardslash.chevron.right", "VS Code CachedData",
+            (support as NSString).appendingPathComponent("Code/CachedData"),
+            safety: .safe, reason: "VS Code cached extension data")
+        add("ide", "Editors & IDEs", "chevron.left.forwardslash.chevron.right", "Zed cache",
+            (home as NSString).appendingPathComponent("Library/Caches/Zed"),
+            safety: .safe, reason: "Zed editor cache")
+        add("ide", "Editors & IDEs", "chevron.left.forwardslash.chevron.right", "JetBrains logs",
+            (home as NSString).appendingPathComponent("Library/Logs/JetBrains"),
+            safety: .safe, reason: "JetBrains IDE logs")
+        add("ide", "Editors & IDEs", "chevron.left.forwardslash.chevron.right", "Xcode cache",
+            (home as NSString).appendingPathComponent("Library/Caches/com.apple.dt.Xcode"),
+            safety: .safe, reason: "Xcode app cache")
 
         add(
             "logs", "Logs", "doc.text", "Diagnostic Reports",

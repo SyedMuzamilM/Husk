@@ -15,28 +15,33 @@ struct ContentView: View {
     @State private var freeSpaceText = "—"
 
     var body: some View {
-        NavigationSplitView {
-            AppSidebar(selection: $section, freeSpaceText: freeSpaceText)
-        } detail: {
-            Group {
-                switch section {
-                case .clean:
-                    CleanView(model: cleanModel)
-                case .analyze:
-                    AnalyzeView(model: analyzeModel)
-                case .apps:
-                    AppsView(model: appsModel)
-                case .status:
-                    StatusView(model: statusModel)
-                case .optimize:
-                    OptimizeView()
-                case .settings:
-                    SettingsView()
+        HStack(spacing: 0) {
+            IconRail(selection: $section)
+
+            ZStack {
+                HuskBackground(glow: glowColor)
+
+                Group {
+                    switch section {
+                    case .clean:
+                        CleanView(model: cleanModel)
+                    case .analyze:
+                        AnalyzeView(model: analyzeModel)
+                    case .apps:
+                        AppsView(model: appsModel)
+                    case .status:
+                        StatusView(model: statusModel)
+                    case .optimize:
+                        OptimizeView()
+                    case .settings:
+                        SettingsView()
+                    }
                 }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .background(Color(nsColor: .windowBackgroundColor))
         }
+        .frame(minWidth: HuskTheme.minWindowWidth, minHeight: HuskTheme.minWindowHeight)
+        .preferredColorScheme(.dark)
         .environment(permissions)
         .task {
             refreshFreeSpace()
@@ -44,13 +49,23 @@ struct ContentView: View {
         }
         .onChange(of: section) { _, newSection in
             refreshFreeSpace()
-            // Status sampling is started/stopped by StatusView appear/disappear.
             if newSection == .settings {
                 permissions.refresh()
             }
             if newSection != .status {
                 statusModel.stop()
             }
+        }
+    }
+
+    private var glowColor: Color {
+        switch section {
+        case .clean: return Color.huskPrimary.opacity(0.20)
+        case .analyze: return Color.huskTeal.opacity(0.14)
+        case .apps: return Color(red: 0.45, green: 0.50, blue: 0.85).opacity(0.16)
+        case .status: return Color.huskTeal.opacity(0.12)
+        case .optimize: return Color.huskPrimary.opacity(0.14)
+        case .settings: return Color.white.opacity(0.04)
         }
     }
 
@@ -71,5 +86,5 @@ struct ContentView: View {
 
 #Preview("Husk Shell") {
     ContentView()
-        .frame(minWidth: 960, minHeight: 600)
+        .frame(width: 1100, height: 720)
 }

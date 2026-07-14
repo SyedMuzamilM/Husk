@@ -10,87 +10,80 @@ struct SettingsView: View {
 
     var body: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 20) {
-                VStack(alignment: .leading, spacing: 6) {
-                    Text("Settings")
-                        .font(.title2.weight(.semibold))
-                    Text("Husk is local-first. No telemetry. Trash only.")
-                        .foregroundStyle(.secondary)
-                }
-
-                permissionsCard
-                aboutCard
-                safetyCard
-            }
-            .padding(24)
-            .frame(maxWidth: 720, alignment: .leading)
-        }
-        .navigationTitle("Settings")
-        .task { permissions.refresh() }
-    }
-
-    private var permissionsCard: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Label("Permissions", systemImage: "lock.shield")
-                .font(.headline)
-
-            HStack {
+            VStack(alignment: .leading, spacing: 16) {
                 VStack(alignment: .leading, spacing: 4) {
-                    Text("Full Disk Access")
-                        .font(.body.weight(.medium))
-                    Text(
-                        permissions.hasFullDiskAccess
-                            ? "Granted — deep scans can read protected user data."
-                            : "Not detected — some Safari/Mail caches may be hidden."
-                    )
-                    .font(.callout)
-                    .foregroundStyle(.secondary)
+                    Text("Settings")
+                        .font(.system(size: 20, weight: .semibold))
+                        .foregroundStyle(Color.huskText)
+                    Text("Husk is local-first. No telemetry. Trash only.")
+                        .font(.system(size: 12))
+                        .foregroundStyle(Color.huskTextMuted)
                 }
-                Spacer()
-                Image(systemName: permissions.hasFullDiskAccess ? "checkmark.circle.fill" : "xmark.circle")
-                    .foregroundStyle(permissions.hasFullDiskAccess ? Color.safeLabel : Color.cautionLabel)
-                    .font(.title2)
+
+                HuskCard {
+                    VStack(alignment: .leading, spacing: 12) {
+                        Label("Permissions", systemImage: "lock.shield")
+                            .font(.headline)
+                            .foregroundStyle(Color.huskText)
+                        HStack {
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text("Full Disk Access")
+                                    .fontWeight(.medium)
+                                    .foregroundStyle(Color.huskText)
+                                Text(
+                                    permissions.hasFullDiskAccess
+                                        ? "Granted — deep scans can read protected user data."
+                                        : "Not detected — some caches may be hidden."
+                                )
+                                .font(.caption)
+                                .foregroundStyle(Color.huskTextMuted)
+                            }
+                            Spacer()
+                            Image(systemName: permissions.hasFullDiskAccess ? "checkmark.circle.fill" : "xmark.circle")
+                                .foregroundStyle(permissions.hasFullDiskAccess ? Color.safeLabel : Color.cautionLabel)
+                                .font(.title2)
+                        }
+                        HStack {
+                            Button("Open System Settings") { permissions.openFullDiskAccessSettings() }
+                                .buttonStyle(.plain)
+                                .foregroundStyle(Color.huskPrimary)
+                            Button("Re-check") { permissions.refresh() }
+                                .buttonStyle(.plain)
+                                .foregroundStyle(Color.huskTextSecondary)
+                        }
+                    }
+                }
+
+                HuskCard {
+                    VStack(alignment: .leading, spacing: 8) {
+                        Label("About Husk", systemImage: "leaf.fill")
+                            .font(.headline)
+                            .foregroundStyle(Color.huskText)
+                        Text("Version \(Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "0.1.0")")
+                            .font(.system(size: 12, design: .monospaced))
+                            .foregroundStyle(Color.huskTextSecondary)
+                        Text("Peel the husk — transparent cleaning for developers. AI agents, node_modules, DerivedData, and more.")
+                            .font(.caption)
+                            .foregroundStyle(Color.huskTextMuted)
+                    }
+                }
+
+                HuskCard {
+                    VStack(alignment: .leading, spacing: 8) {
+                        Label("Safety", systemImage: "checkmark.shield")
+                            .font(.headline)
+                            .foregroundStyle(Color.huskText)
+                        bullet("Preview every path before cleaning")
+                        bullet("Move to Trash only — never shred")
+                        bullet("Never count APFS purgeable as junk")
+                        bullet("SIP and sensitive paths protected")
+                        bullet("Zero telemetry")
+                    }
+                }
             }
-
-            HStack {
-                Button("Open System Settings") {
-                    permissions.openFullDiskAccessSettings()
-                }
-                Button("Re-check") {
-                    permissions.refresh()
-                }
-            }
+            .padding(HuskTheme.contentPadding)
         }
-        .huskCard()
-    }
-
-    private var aboutCard: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Label("About Husk", systemImage: "leaf")
-                .font(.headline)
-            Text("Version \(Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "0.1.0")")
-                .font(.callout.monospacedDigit())
-            Text("Peel the husk off your Mac — transparent cleaning for developers and power users.")
-                .font(.callout)
-                .foregroundStyle(.secondary)
-            Text("Free core · Premium features planned ($9.99 lifetime)")
-                .font(.caption)
-                .foregroundStyle(.secondary)
-        }
-        .huskCard()
-    }
-
-    private var safetyCard: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Label("Safety", systemImage: "checkmark.shield")
-                .font(.headline)
-            bullet("Preview every path before cleaning")
-            bullet("Move to Trash only — never permanent shred")
-            bullet("Never count APFS purgeable space as junk")
-            bullet("SIP and sensitive paths are protected")
-            bullet("Zero telemetry in this beta")
-        }
-        .huskCard()
+        .task { permissions.refresh() }
     }
 
     private func bullet(_ text: String) -> some View {
@@ -98,9 +91,9 @@ struct SettingsView: View {
             Image(systemName: "checkmark")
                 .foregroundStyle(Color.safeLabel)
                 .font(.caption.weight(.bold))
-                .padding(.top, 3)
             Text(text)
                 .font(.callout)
+                .foregroundStyle(Color.huskTextSecondary)
         }
     }
 }

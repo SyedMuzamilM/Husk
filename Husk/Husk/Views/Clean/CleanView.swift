@@ -13,384 +13,401 @@ struct CleanView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            header
-            if case .scanning(let progress) = model.phase {
-                ProgressView(value: progress.fraction)
-                    .progressViewStyle(.linear)
-                    .padding(.horizontal, 16)
-                    .padding(.bottom, 8)
-            }
-            Divider()
+            topBar
             content
-            Divider()
-            bottomBar
+            if showsBottomBar {
+                bottomBar
+            }
         }
-        .navigationTitle("Clean")
         .confirmationDialog(
             "Move \(model.selectedItems.count) item(s) to Trash?",
             isPresented: $confirmTrash,
             titleVisibility: .visible
         ) {
-            Button(
-                "Move \(ByteFormat.string(for: model.selectedBytes)) to Trash",
-                role: .destructive
-            ) {
+            Button("Move \(ByteFormat.string(for: model.selectedBytes)) to Trash", role: .destructive) {
                 Task { await model.moveSelectionToTrash() }
             }
             Button("Cancel", role: .cancel) {}
         } message: {
-            Text("Items are moved to Trash only — never permanently shredded. Empty Trash in Finder when ready.")
+            Text("Items go to Trash only — never permanently shredded.")
         }
         .onReceive(NotificationCenter.default.publisher(for: .huskStartCleanScan)) { _ in
-            if !model.isScanning {
-                model.startScan()
-            }
+            if !model.isScanning { model.startScan() }
         }
     }
 
-    private var header: some View {
-        HStack(alignment: .center, spacing: 12) {
-            VStack(alignment: .leading, spacing: 4) {
-                Text("Peel the husk")
-                    .font(.title2.weight(.semibold))
-                Text(subtitle)
-                    .font(.callout)
-                    .foregroundStyle(.secondary)
-                    .lineLimit(2)
+    private var showsBottomBar: Bool {
+        !model.categories.isEmpty && !model.isScanning
+    }
+
+    // MARK: - Top
+
+    private var topBar: some View {
+        HStack(spacing: 12) {
+            VStack(alignment: .leading, spacing: 2) {
+                Text(titleText)
+                    .font(.system(size: 20, weight: .semibold))
+                    .foregroundStyle(Color.huskText)
+                Text(subtitleText)
+                    .font(.system(size: 12))
+                    .foregroundStyle(Color.huskTextMuted)
+                    .lineLimit(1)
             }
-
-            Spacer(minLength: 12)
-
+            Spacer()
             if !permissions.hasFullDiskAccess {
                 Button {
                     permissions.openFullDiskAccessSettings()
                 } label: {
                     Label("Full Disk Access", systemImage: "lock.open")
+                        .font(.system(size: 12, weight: .medium))
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 7)
+                        .background(Capsule().strokeBorder(Color.huskBorder))
+                        .foregroundStyle(Color.huskTextSecondary)
                 }
-                .help("Some caches stay hidden without Full Disk Access")
+                .buttonStyle(.plain)
             }
-
-            Button("Select Safe") {
-                model.selectAllSafe()
-            }
-            .disabled(model.categories.isEmpty || model.isBusy)
-
             if model.isScanning {
-                Button("Cancel", role: .cancel) {
-                    model.cancelScan()
-                }
-                .keyboardShortcut(.escape, modifiers: [])
-            } else {
+                Button("Cancel") { model.cancelScan() }
+                    .buttonStyle(.plain)
+                    .foregroundStyle(Color.huskTextSecondary)
+            } else if !model.categories.isEmpty {
                 Button {
                     model.startScan()
                 } label: {
-                    Label(model.categories.isEmpty ? "Scan" : "Rescan", systemImage: "arrow.clockwise")
+                    Label("Rescan", systemImage: "arrow.clockwise")
+                        .font(.system(size: 12, weight: .semibold))
+                        .padding(.horizontal, 14)
+                        .padding(.vertical, 8)
+                        .background(Capsule().fill(Color.huskSurfaceHigh))
+                        .foregroundStyle(Color.huskText)
                 }
-                .buttonStyle(.borderedProminent)
-                .keyboardShortcut("r", modifiers: [.command])
-                .disabled(model.isBusy)
+                .buttonStyle(.plain)
             }
         }
-        .padding(16)
+        .padding(.horizontal, HuskTheme.contentPadding)
+        .padding(.top, 18)
+        .padding(.bottom, 12)
     }
 
-    private var subtitle: String {
+    private var titleText: String {
         switch model.phase {
-        case .idle:
-            return "Scan regenerable caches and developer leftovers. Click an item for a detailed breakdown."
-        case .scanning(let p):
-            return "Scanning… \(Int(p.fraction * 100))% · \(p.itemsFound) found · \(ByteFormat.string(for: p.bytesFound)) · \(p.currentPath)"
-        case .ready:
-            if let r = model.lastResult {
-                return "Found \(ByteFormat.string(for: r.totalBytes)) across \(r.allItems.count) items in \(String(format: "%.1f", r.duration))s — select a row for details"
-            }
-            return "Review items, then move selected to Trash."
-        case .trashing:
-            return "Moving selected items to Trash…"
-        case .finished(let bytes, let count):
-            return "Moved \(count) item(s) · \(ByteFormat.string(for: bytes)) to Trash. Empty Trash in Finder when ready."
-        case .failed(let message):
-            return message
+        case .idle, .scanning: return "Clean"
+        default: return "Caches & Derived Data"
         }
     }
+
+    private var subtitleText: String {
+        switch model.phase {
+        case .idle:
+            return "Peel regenerable clutter. Preview every path. Trash only."
+        case .scanning(let p):
+            return "Scanning… \(Int(p.fraction * 100))% · \(p.itemsFound) items · \(ByteFormat.string(for: p.bytesFound))"
+        case .ready:
+            if let r = model.lastResult {
+                return "Review items ready for pruning · \(ByteFormat.string(for: r.totalBytes)) found in \(String(format: "%.1f", r.duration))s"
+            }
+            return "Review items ready for pruning."
+        case .trashing:
+            return "Moving to Trash…"
+        case .finished(let b, let n):
+            return "Moved \(n) item(s) · \(ByteFormat.string(for: b)) to Trash"
+        case .failed(let m):
+            return m
+        }
+    }
+
+    // MARK: - Content
 
     @ViewBuilder
     private var content: some View {
         switch model.phase {
         case .idle:
-            EmptyStateView(
-                systemImage: "leaf",
-                title: "Ready to scan",
-                message: "Husk looks for regenerable caches, logs, Xcode data, package manager caches, and local AI models. Every path is shown before delete — click any result for a full content breakdown.",
-                actionTitle: "Scan Now"
-            ) {
-                model.startScan()
-            }
-
+            heroReady
         case .scanning(let progress):
-            VStack(spacing: 18) {
-                ProgressView(value: progress.fraction)
-                    .progressViewStyle(.linear)
-                    .frame(maxWidth: 360)
-                Text("\(Int(progress.fraction * 100))%")
-                    .font(.title3.monospacedDigit().weight(.semibold))
-                Text(progress.currentPath)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .lineLimit(2)
-                    .multilineTextAlignment(.center)
-                    .frame(maxWidth: 420)
-                Text("\(progress.itemsFound) items · \(ByteFormat.string(for: progress.bytesFound))")
-                    .font(.callout.monospacedDigit())
-                    .foregroundStyle(.secondary)
-            }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .padding()
-
+            heroScanning(progress)
         case .failed(let message):
-            EmptyStateView(
-                systemImage: "exclamationmark.triangle",
-                title: "Scan failed",
-                message: message,
-                actionTitle: "Try Again"
-            ) {
-                model.startScan()
-            }
-
-        case .trashing:
-            ProgressView("Moving to Trash…")
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-
-        default:
-            if model.categories.isEmpty {
-                EmptyStateView(
-                    systemImage: "checkmark.circle",
-                    title: "No husk found. Nice.",
-                    message: "Nothing large matched the current clean profiles — or sizes were zero.",
-                    actionTitle: "Scan Again"
-                ) {
+            VStack(spacing: 16) {
+                Image(systemName: "exclamationmark.triangle")
+                    .font(.system(size: 36))
+                    .foregroundStyle(Color.cautionLabel)
+                Text(message).foregroundStyle(Color.huskTextSecondary)
+                HuskPillButton(title: "Try Again", systemImage: "arrow.clockwise") {
                     model.startScan()
                 }
-            } else {
-                resultsSplit
             }
-        }
-    }
-
-    private var resultsSplit: some View {
-        HSplitView {
-            resultsList
-                .frame(minWidth: 420)
-
-            if let item = model.inspectedItem {
-                CacheDetailPanel(
-                    item: item,
-                    report: model.cacheDetail,
-                    isLoading: model.isLoadingDetail,
-                    onReveal: { path in
-                        NSWorkspace.shared.activateFileViewerSelecting([URL(fileURLWithPath: path)])
-                    },
-                    onToggleSelect: { model.toggle(item) },
-                    isSelected: model.selectedIDs.contains(item.id)
-                )
-            } else {
-                VStack(spacing: 10) {
-                    Image(systemName: "sidebar.trailing")
-                        .font(.system(size: 36, weight: .light))
-                        .foregroundStyle(.secondary)
-                    Text("Select a cache for details")
-                        .font(.headline)
-                    Text("See size, safety, path, and the largest folders or files inside.")
-                        .font(.callout)
-                        .foregroundStyle(.secondary)
-                        .multilineTextAlignment(.center)
-                        .frame(maxWidth: 240)
-                }
-                .frame(minWidth: 280, idealWidth: 320, maxWidth: 380, maxHeight: .infinity)
-                .background(Color(nsColor: .controlBackgroundColor).opacity(0.35))
-            }
-        }
-    }
-
-    private var resultsList: some View {
-        VStack(spacing: 0) {
-            HStack(spacing: 8) {
-                Image(systemName: "magnifyingglass")
-                    .foregroundStyle(.secondary)
-                TextField("Filter by name or path", text: $model.searchText)
-                    .textFieldStyle(.plain)
-                if !model.searchText.isEmpty {
-                    Button {
-                        model.searchText = ""
-                    } label: {
-                        Image(systemName: "xmark.circle.fill")
-                            .foregroundStyle(.secondary)
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+        case .trashing:
+            ProgressView("Moving to Trash…")
+                .tint(Color.huskPrimary)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+        default:
+            if model.categories.isEmpty {
+                VStack(spacing: 12) {
+                    Text("No husk found. Nice.")
+                        .font(.title2.weight(.semibold))
+                        .foregroundStyle(Color.huskText)
+                    HuskPillButton(title: "Scan Again", systemImage: "arrow.clockwise") {
+                        model.startScan()
                     }
-                    .buttonStyle(.plain)
                 }
-                Text(ByteFormat.string(for: model.totalBytes))
-                    .font(.caption.monospacedDigit().weight(.semibold))
-                    .foregroundStyle(.secondary)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+            } else {
+                resultsLayout
             }
-            .padding(.horizontal, 16)
+        }
+    }
+
+    private var heroReady: some View {
+        VStack(spacing: 20) {
+            Spacer()
+            ZStack {
+                Circle()
+                    .fill(Color.huskPrimary.opacity(0.12))
+                    .frame(width: 220, height: 220)
+                    .blur(radius: 30)
+                Image(systemName: "leaf.fill")
+                    .font(.system(size: 72, weight: .light))
+                    .foregroundStyle(
+                        LinearGradient(
+                            colors: [Color.huskPrimaryBright, Color.huskPrimary],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                    )
+                    .shadow(color: Color.huskPrimary.opacity(0.35), radius: 24, y: 8)
+            }
+            Text("Ready to peel.")
+                .font(.system(size: 28, weight: .semibold))
+                .foregroundStyle(Color.huskText)
+            Text("Caches, AI agents, node_modules, DerivedData — regenerable clutter only.")
+                .font(.system(size: 13))
+                .foregroundStyle(Color.huskTextMuted)
+                .multilineTextAlignment(.center)
+                .frame(maxWidth: 360)
+            Text("NOTHING DELETED UNTIL YOU SELECT IT")
+                .font(.system(size: 10, weight: .bold))
+                .tracking(1.2)
+                .foregroundStyle(Color.huskTextMuted)
+                .padding(.horizontal, 14)
+                .padding(.vertical, 6)
+                .background(Capsule().strokeBorder(Color.huskBorder))
+            HuskPillButton(title: "Scan", systemImage: "sparkle.magnifyingglass") {
+                model.startScan()
+            }
+            .padding(.top, 4)
+            Spacer()
+            Text("ZERO TELEMETRY · LOCAL ONLY · TRASH ONLY")
+                .font(.system(size: 10, weight: .semibold))
+                .tracking(1.0)
+                .foregroundStyle(Color.huskTextMuted.opacity(0.7))
+                .padding(.bottom, 24)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+
+    private func heroScanning(_ progress: CleanScanProgress) -> some View {
+        VStack(spacing: 18) {
+            Spacer()
+            ProgressView(value: progress.fraction)
+                .tint(Color.huskPrimary)
+                .frame(width: 280)
+            Text("\(Int(progress.fraction * 100))%")
+                .font(.system(size: 32, weight: .semibold, design: .rounded))
+                .monospacedDigit()
+                .foregroundStyle(Color.huskPrimary)
+            Text(progress.currentPath)
+                .font(.system(size: 12, design: .monospaced))
+                .foregroundStyle(Color.huskTextMuted)
+                .lineLimit(2)
+                .multilineTextAlignment(.center)
+                .frame(maxWidth: 400)
+            Text("\(progress.itemsFound) items · \(ByteFormat.string(for: progress.bytesFound))")
+                .font(.system(size: 13, design: .monospaced))
+                .foregroundStyle(Color.huskTextSecondary)
+            Spacer()
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+
+    // MARK: - Results (stitch-inspired split)
+
+    private var resultsLayout: some View {
+        HStack(spacing: 12) {
+            categoryList
+                .frame(width: 280)
+            detailPane
+                .frame(maxWidth: .infinity)
+        }
+        .padding(.horizontal, HuskTheme.contentPadding)
+        .padding(.bottom, 8)
+    }
+
+    private var categoryList: some View {
+        VStack(spacing: 0) {
+            HStack {
+                Text("CATEGORY")
+                    .font(.system(size: 10, weight: .bold))
+                    .tracking(0.8)
+                    .foregroundStyle(Color.huskTextMuted)
+                Spacer()
+                Text("SIZE")
+                    .font(.system(size: 10, weight: .bold))
+                    .tracking(0.8)
+                    .foregroundStyle(Color.huskTextMuted)
+            }
+            .padding(.horizontal, 14)
             .padding(.vertical, 10)
 
-            Divider()
+            Divider().overlay(Color.huskBorder)
 
-            List(selection: Binding(
-                get: { model.inspectedItem?.id },
-                set: { id in
-                    if let id,
-                       let item = model.categories.flatMap(\.items).first(where: { $0.id == id }) {
-                        model.inspect(item)
-                    }
-                }
-            )) {
-                ForEach(model.filteredCategories) { category in
-                    Section {
+            ScrollView {
+                LazyVStack(spacing: 2) {
+                    ForEach(model.filteredCategories) { category in
                         ForEach(category.items) { item in
-                            CleanItemRow(
-                                item: item,
-                                isSelected: model.selectedIDs.contains(item.id),
-                                isInspected: model.inspectedItem?.id == item.id,
-                                onToggle: { model.toggle(item) },
-                                onInspect: { model.inspect(item) },
-                                onReveal: {
-                                    NSWorkspace.shared.activateFileViewerSelecting([item.url])
-                                }
-                            )
-                            .tag(item.id)
-                        }
-                    } header: {
-                        HStack {
-                            Label(category.name, systemImage: category.systemImage)
-                            Text("\(category.items.count)")
-                                .font(.caption2.monospacedDigit())
-                                .padding(.horizontal, 6)
-                                .padding(.vertical, 2)
-                                .background(.quaternary, in: Capsule())
-                            Spacer()
-                            Text(ByteFormat.string(for: category.totalBytes))
-                                .font(.caption.monospacedDigit())
-                                .foregroundStyle(.secondary)
-                            Button("Safe") { model.selectAll(in: category, onlySafe: true) }
-                                .buttonStyle(.borderless)
-                                .font(.caption)
-                            Button("None") { model.deselectAll(in: category) }
-                                .buttonStyle(.borderless)
-                                .font(.caption)
+                            categoryRow(item)
                         }
                     }
                 }
+                .padding(8)
             }
-            .listStyle(.inset)
+        }
+        .background(
+            RoundedRectangle(cornerRadius: HuskTheme.cardRadius, style: .continuous)
+                .fill(Color.huskSurface.opacity(0.9))
+                .overlay(
+                    RoundedRectangle(cornerRadius: HuskTheme.cardRadius, style: .continuous)
+                        .strokeBorder(Color.huskBorder)
+                )
+        )
+    }
+
+    private func categoryRow(_ item: CleanItem) -> some View {
+        let selected = model.inspectedItem?.id == item.id
+        return Button {
+            model.inspect(item)
+        } label: {
+            HStack(spacing: 10) {
+                Button {
+                    model.toggle(item)
+                } label: {
+                    Image(systemName: model.selectedIDs.contains(item.id) ? "checkmark.circle.fill" : "circle")
+                        .foregroundStyle(model.selectedIDs.contains(item.id) ? Color.huskPrimary : Color.huskTextMuted)
+                }
+                .buttonStyle(.plain)
+                .disabled(!item.safety.isSelectable)
+
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(item.name)
+                        .font(.system(size: 13, weight: .medium))
+                        .foregroundStyle(Color.huskText)
+                        .lineLimit(1)
+                    HStack(spacing: 6) {
+                        SafetyBadge(label: item.safety)
+                        Text(item.categoryName)
+                            .font(.system(size: 10))
+                            .foregroundStyle(Color.huskTextMuted)
+                            .lineLimit(1)
+                    }
+                }
+                Spacer(minLength: 4)
+                Text(ByteFormat.string(for: item.byteCount))
+                    .font(.system(size: 12, weight: .medium, design: .monospaced))
+                    .foregroundStyle(Color.huskPrimary)
+            }
+            .padding(.horizontal, 10)
+            .padding(.vertical, 10)
+            .background(
+                RoundedRectangle(cornerRadius: 10, style: .continuous)
+                    .fill(selected ? Color.huskPrimary.opacity(0.12) : Color.clear)
+            )
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+    }
+
+    @ViewBuilder
+    private var detailPane: some View {
+        if let item = model.inspectedItem {
+            CacheDetailPanel(
+                item: item,
+                report: model.cacheDetail,
+                isLoading: model.isLoadingDetail,
+                onReveal: { path in
+                    NSWorkspace.shared.activateFileViewerSelecting([URL(fileURLWithPath: path)])
+                },
+                onToggleSelect: { model.toggle(item) },
+                isSelected: model.selectedIDs.contains(item.id)
+            )
+            .background(
+                RoundedRectangle(cornerRadius: HuskTheme.cardRadius, style: .continuous)
+                    .fill(Color.huskSurface.opacity(0.9))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: HuskTheme.cardRadius, style: .continuous)
+                            .strokeBorder(Color.huskBorder)
+                    )
+            )
+            .clipShape(RoundedRectangle(cornerRadius: HuskTheme.cardRadius, style: .continuous))
+        } else {
+            VStack(spacing: 10) {
+                Image(systemName: "sidebar.trailing")
+                    .font(.system(size: 32, weight: .light))
+                    .foregroundStyle(Color.huskTextMuted)
+                Text("Select an item")
+                    .font(.headline)
+                    .foregroundStyle(Color.huskText)
+                Text("Inspect path, safety, and largest contents before peeling.")
+                    .font(.caption)
+                    .foregroundStyle(Color.huskTextMuted)
+                    .multilineTextAlignment(.center)
+                    .frame(maxWidth: 260)
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .background(
+                RoundedRectangle(cornerRadius: HuskTheme.cardRadius, style: .continuous)
+                    .fill(Color.huskSurface.opacity(0.5))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: HuskTheme.cardRadius, style: .continuous)
+                            .strokeBorder(Color.huskBorder)
+                    )
+            )
         }
     }
 
     private var bottomBar: some View {
-        HStack(spacing: 16) {
-            Text("\(model.selectedItems.count) selected")
-                .foregroundStyle(.secondary)
-            SizeText(bytes: model.selectedBytes)
-
+        HStack {
+            Text("\(ByteFormat.string(for: model.selectedBytes)) SELECTED")
+                .font(.system(size: 11, weight: .bold))
+                .tracking(0.8)
+                .foregroundStyle(Color.huskTextMuted)
+            Text("· \(model.selectedItems.count) items")
+                .font(.system(size: 12, design: .monospaced))
+                .foregroundStyle(Color.huskTextSecondary)
             Spacer()
-
-            Button("Clear") {
-                model.clearSelection()
-            }
-            .disabled(model.selectedIDs.isEmpty || model.isBusy)
-
-            Button {
+            Button("Select Safe") { model.selectAllSafe() }
+                .buttonStyle(.plain)
+                .font(.system(size: 12, weight: .medium))
+                .foregroundStyle(Color.huskTextSecondary)
+            Button("Clear") { model.clearSelection() }
+                .buttonStyle(.plain)
+                .font(.system(size: 12, weight: .medium))
+                .foregroundStyle(Color.huskTextSecondary)
+                .disabled(model.selectedIDs.isEmpty)
+            HuskPillButton(
+                title: "Move to Trash",
+                systemImage: "trash",
+                prominent: true
+            ) {
                 confirmTrash = true
-            } label: {
-                Label("Move to Trash", systemImage: "trash")
             }
-            .buttonStyle(.borderedProminent)
-            .tint(.red.opacity(0.85))
+            .opacity(model.selectedItems.isEmpty ? 0.45 : 1)
             .disabled(model.selectedItems.isEmpty || model.isBusy)
-            .keyboardShortcut(.return, modifiers: [.command])
         }
-        .padding(16)
-        .background(.bar)
-    }
-}
-
-struct CleanItemRow: View {
-    let item: CleanItem
-    let isSelected: Bool
-    var isInspected: Bool = false
-    let onToggle: () -> Void
-    var onInspect: (() -> Void)? = nil
-    let onReveal: () -> Void
-
-    var body: some View {
-        HStack(alignment: .top, spacing: 12) {
-            Button(action: onToggle) {
-                Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
-                    .foregroundStyle(isSelected ? Color.accentColor : .secondary)
-                    .font(.title3)
-            }
-            .buttonStyle(.plain)
-            .disabled(!item.safety.isSelectable)
-            .accessibilityLabel(isSelected ? "Deselect" : "Select")
-
-            VStack(alignment: .leading, spacing: 4) {
-                HStack(spacing: 8) {
-                    Text(item.name)
-                        .font(.body.weight(.medium))
-                        .lineLimit(1)
-                    SafetyBadge(label: item.safety)
-                    if isInspected {
-                        Text("Details")
-                            .font(.caption2.weight(.semibold))
-                            .padding(.horizontal, 6)
-                            .padding(.vertical, 2)
-                            .background(Color.accentColor.opacity(0.15), in: Capsule())
-                    }
-                }
-                Text(item.path)
-                    .font(.caption.monospaced())
-                    .foregroundStyle(.secondary)
-                    .lineLimit(1)
-                    .truncationMode(.middle)
-                HStack(spacing: 8) {
-                    Text(item.reason)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                        .lineLimit(1)
-                    if let count = item.entryCount {
-                        Text("· \(count) entries")
-                            .font(.caption)
-                            .foregroundStyle(.tertiary)
-                    }
-                }
-            }
-
-            Spacer(minLength: 8)
-
-            VStack(alignment: .trailing, spacing: 6) {
-                SizeText(bytes: item.byteCount)
-                Button("Reveal", action: onReveal)
-                    .buttonStyle(.borderless)
-                    .font(.caption)
-            }
+        .padding(.horizontal, HuskTheme.contentPadding)
+        .padding(.vertical, 14)
+        .background(Color.huskSurfaceLow.opacity(0.95))
+        .overlay(alignment: .top) {
+            Rectangle().fill(Color.huskBorder).frame(height: 1)
         }
-        .padding(.vertical, 4)
-        .contentShape(Rectangle())
-        .onTapGesture {
-            onInspect?()
-        }
-        .contextMenu {
-            Button("Show details") { onInspect?() }
-            Button("Reveal in Finder", action: onReveal)
-            if item.safety.isSelectable {
-                Button(isSelected ? "Deselect" : "Select for Trash", action: onToggle)
-            }
-            Button("Copy Path") {
-                NSPasteboard.general.clearContents()
-                NSPasteboard.general.setString(item.path, forType: .string)
-            }
-        }
-        .opacity(item.safety == .protected ? 0.5 : 1)
     }
 }

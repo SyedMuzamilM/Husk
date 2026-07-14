@@ -11,7 +11,9 @@ struct HuskApp: App {
         WindowGroup {
             ContentView()
         }
-        .defaultSize(width: 1100, height: 720)
+        .defaultSize(width: 1120, height: 740)
+        .windowStyle(.titleBar)
+        .windowToolbarStyle(.unified(showsTitle: true))
         .commands {
             CommandGroup(replacing: .newItem) {}
             CommandMenu("Husk") {
@@ -28,7 +30,6 @@ struct HuskApp: App {
     }
 }
 
-/// Isolated settings scene so we don't construct services during App `body` evaluation.
 private struct SettingsPane: View {
     @State private var permissions = PermissionService()
 
@@ -36,6 +37,7 @@ private struct SettingsPane: View {
         SettingsView()
             .environment(permissions)
             .frame(width: 480, height: 440)
+            .preferredColorScheme(.dark)
             .task { permissions.refresh() }
     }
 }

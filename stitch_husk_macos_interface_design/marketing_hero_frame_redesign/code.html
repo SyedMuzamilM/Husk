@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Husk - Marketing Frame</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&amp;family=JetBrains+Mono:wght@500&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+          darkMode: "class",
+          theme: {
+            extend: {
+              "colors": {
+                      "surface-container-lowest": "#0e0e0f",
+                      "on-secondary": "#003735",
+                      "on-background": "#e5e2e3",
+                      "on-tertiary-fixed": "#002118",
+                      "surface-container-low": "#1b1b1c",
+                      "tertiary-fixed": "#bbedda",
+                      "tertiary": "#a6d8c5",
+                      "on-secondary-fixed": "#00201f",
+                      "on-primary-fixed": "#2c1600",
+                      "on-error-container": "#ffdad6",
+                      "surface-container": "#1f1f20",
+                      "outline": "#9e8e7f",
+                      "error-container": "#93000a",
+                      "surface": "#131314",
+                      "surface-dim": "#131314",
+                      "on-primary-container": "#663a00",
+                      "inverse-on-surface": "#303031",
+                      "secondary-container": "#007d7a",
+                      "on-secondary-container": "#c6fffb",
+                      "inverse-primary": "#87520f",
+                      "primary-fixed": "#ffdcbd",
+                      "error": "#ffb4ab",
+                      "inverse-surface": "#e5e2e3",
+                      "secondary": "#77d6d2",
+                      "outline-variant": "#514439",
+                      "on-primary-fixed-variant": "#693c00",
+                      "on-tertiary-container": "#1c4c3e",
+                      "on-tertiary": "#01382b",
+                      "on-error": "#690005",
+                      "primary-container": "#e8a45c",
+                      "on-primary": "#492900",
+                      "secondary-fixed": "#94f3ee",
+                      "tertiary-container": "#8bbcaa",
+                      "surface-container-high": "#2a2a2b",
+                      "primary-fixed-dim": "#ffb86e",
+                      "primary": "#ffc284",
+                      "surface-tint": "#ffb86e",
+                      "surface-variant": "#353436",
+                      "on-tertiary-fixed-variant": "#1f4f41",
+                      "on-surface": "#e5e2e3",
+                      "secondary-fixed-dim": "#77d6d2",
+                      "surface-container-highest": "#353436",
+                      "on-surface-variant": "#d6c3b3",
+                      "on-secondary-fixed-variant": "#00504d",
+                      "background": "#131314",
+                      "surface-bright": "#39393a",
+                      "tertiary-fixed-dim": "#9fd1be"
+              },
+              "borderRadius": {
+                      "DEFAULT": "0.25rem",
+                      "lg": "0.5rem",
+                      "xl": "0.75rem",
+                      "full": "9999px"
+              },
+              "spacing": {
+                      "gutter-md": "16px",
+                      "container-padding": "24px",
+                      "card-gap": "12px",
+                      "rail-width": "64px"
+              },
+              "fontFamily": {
+                      "label-caps": ["Inter"],
+                      "body-md": ["Inter"],
+                      "headline-md": ["Inter"],
+                      "headline-lg": ["Inter"],
+                      "data-mono": ["JetBrains Mono"]
+              },
+              "fontSize": {
+                      "label-caps": ["11px", {"lineHeight": "16px", "letterSpacing": "0.05em", "fontWeight": "700"}],
+                      "body-md": ["14px", {"lineHeight": "20px", "fontWeight": "400"}],
+                      "headline-md": ["20px", {"lineHeight": "28px", "fontWeight": "600"}],
+                      "headline-lg": ["28px", {"lineHeight": "34px", "letterSpacing": "-0.02em", "fontWeight": "600"}],
+                      "data-mono": ["13px", {"lineHeight": "16px", "letterSpacing": "-0.01em", "fontWeight": "500"}]
+              }
+      },
+          },
+        }
+      </script>
+<style>
+        .glass-panel {
+            background: rgba(31, 31, 32, 0.6); /* surface-container */
+            backdrop-filter: blur(30px) saturate(150%);
+            -webkit-backdrop-filter: blur(30px) saturate(150%);
+            border: 1px solid transparent;
+            background-image: linear-gradient(rgba(31, 31, 32, 0.6), rgba(31, 31, 32, 0.6)), linear-gradient(135deg, rgba(255, 255, 255, 0.1) 0%, rgba(255, 255, 255, 0.02) 100%);
+            background-origin: border-box;
+            background-clip: padding-box, border-box;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5), inset 0 1px 0px 0px rgba(255,255,255,0.1);
+        }
+        
+        .bg-mesh {
+            background-image: radial-gradient(at 40% 20%, hsla(28,100%,74%,0.15) 0px, transparent 50%),
+                              radial-gradient(at 80% 0%, hsla(189,100%,56%,0.1) 0px, transparent 50%),
+                              radial-gradient(at 0% 50%, hsla(355,100%,93%,0.05) 0px, transparent 50%);
+            background-color: #131314; /* background */
+        }
+        
+        .mac-window-control {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            display: inline-block;
+        }
+        .mac-close { background-color: #ff5f56; border: 1px solid #e0443e; }
+        .mac-min { background-color: #ffbd2e; border: 1px solid #dea123; }
+        .mac-max { background-color: #27c93f; border: 1px solid #1aab29; }
+    </style>
+</head>
+<body class="bg-mesh min-h-screen text-on-surface font-body-md text-body-md antialiased overflow-hidden flex flex-col items-center justify-center p-8">
+<!-- Ambient background image/texture -->
+<div class="fixed inset-0 bg-cover bg-center opacity-30 mix-blend-screen pointer-events-none z-[-1]" data-alt="A softly blurred, abstract nature scene. It looks like looking through frosted glass at a dense, dark forest during a warm golden hour. Deep greens, charcoal blacks, and soft amber light creating a cinematic, moody, and extremely high-quality liquid-soft glassmorphism background." style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuCelNX9tDF8J70CbAATm6C9EOZYL4-Ps9FBd3-44QdL6XOhEdcZUxpc5ExWfc0PJJ-kXio33Ix-bUy0Ey5jCazuHCY3v5j5WdOouC2thrNrrKAg9M-d8RQ5PygQZCyrS3sDFQjPBX8nSmrRFZD_w5XrbDDwKL6A8FV1_zt1Rhmz90NFeYGEAamV2WgzHLGNN6_B4CyvTl4Udj1WEwyvBHedxAqEIKVaIkDdT3RGCyn0sJ_lDS5ZCVjORsxB1KPC3eXi8WBLSBL5hSw')"></div>
+<!-- Header Text -->
+<div class="text-center mb-12 relative z-10">
+<h1 class="text-5xl md:text-7xl font-bold tracking-tight text-white drop-shadow-lg" style="letter-spacing: -0.03em;">Peel the husk.</h1>
+</div>
+<!-- Floating Mac Window -->
+<div class="glass-panel w-full max-w-5xl rounded-xl overflow-hidden relative z-10 flex flex-col" style="height: 600px;">
+<!-- Mac Title Bar -->
+<div class="h-10 flex items-center px-4 border-b border-white/5 bg-surface/40">
+<div class="flex gap-2">
+<span class="mac-window-control mac-close"></span>
+<span class="mac-window-control mac-min"></span>
+<span class="mac-window-control mac-max"></span>
+</div>
+<div class="flex-1 text-center font-headline-md text-headline-md text-on-surface/50 text-[13px]">
+                Husk — Clean Results
+            </div>
+</div>
+<!-- App Layout -->
+<div class="flex flex-1 overflow-hidden relative">
+<!-- SideNav Mockup (Simplified for presentation) -->
+<div class="w-rail-width flex-shrink-0 border-r border-white/5 bg-surface-container-lowest/50 backdrop-blur-2xl flex flex-col items-center py-6 gap-8 z-50">
+<div class="mb-4 hidden"> <!-- Brand Logo hidden per JSON -->
+<span class="font-headline-md text-headline-md text-primary tracking-tight">Husk</span>
+</div>
+<nav class="flex flex-col gap-6">
+<button class="text-on-surface-variant/60 p-2 flex flex-col items-center gap-1 group">
+<span class="material-symbols-outlined text-[24px] group-hover:text-primary transition-all">space_dashboard</span>
+</button>
+<!-- Active state: Caches (Semantic match for 'DerivedData') -->
+<button class="bg-primary/10 text-primary rounded-full p-2 flex flex-col items-center gap-1 scale-90 duration-150">
+<span class="material-symbols-outlined text-[24px]">layers</span>
+</button>
+<button class="text-on-surface-variant/60 p-2 flex flex-col items-center gap-1 group">
+<span class="material-symbols-outlined text-[24px] group-hover:text-primary transition-all">terminal</span>
+</button>
+<button class="text-on-surface-variant/60 p-2 flex flex-col items-center gap-1 group">
+<span class="material-symbols-outlined text-[24px] group-hover:text-primary transition-all">inventory_2</span>
+</button>
+</nav>
+<div class="mt-auto flex flex-col gap-4">
+<button class="text-on-surface-variant/60 p-2 group">
+<span class="material-symbols-outlined text-[24px] group-hover:text-primary transition-all">settings</span>
+</button>
+</div>
+</div>
+<!-- Main Split Content -->
+<div class="flex-1 flex overflow-hidden ml-rail-width absolute inset-0">
+<!-- Left Pane: Categories -->
+<div class="w-64 border-r border-white/5 bg-surface/30 p-container-padding flex flex-col gap-2 overflow-y-auto">
+<div class="font-label-caps text-label-caps text-on-surface-variant mb-4 uppercase">Identified Caches</div>
+<div class="px-3 py-2 rounded-lg bg-surface/0 hover:bg-surface-bright/50 cursor-pointer transition-colors flex justify-between items-center group">
+<div class="flex items-center gap-3">
+<span class="material-symbols-outlined text-on-surface-variant group-hover:text-on-surface text-[20px]">folder_special</span>
+<span class="text-on-surface font-medium text-[13px]">System Cache</span>
+</div>
+<span class="font-data-mono text-data-mono text-on-surface-variant">1.2 GB</span>
+</div>
+<!-- Active Category -->
+<div class="px-3 py-2 rounded-lg bg-primary/10 border border-primary/20 cursor-pointer transition-colors flex justify-between items-center">
+<div class="flex items-center gap-3">
+<span class="material-symbols-outlined text-primary text-[20px]">code_blocks</span>
+<span class="text-primary font-medium text-[13px]">Xcode DerivedData</span>
+</div>
+<span class="font-data-mono text-data-mono text-primary">8.4 GB</span>
+</div>
+<div class="px-3 py-2 rounded-lg bg-surface/0 hover:bg-surface-bright/50 cursor-pointer transition-colors flex justify-between items-center group">
+<div class="flex items-center gap-3">
+<span class="material-symbols-outlined text-on-surface-variant group-hover:text-on-surface text-[20px]">web_asset</span>
+<span class="text-on-surface font-medium text-[13px]">Browser Data</span>
+</div>
+<span class="font-data-mono text-data-mono text-on-surface-variant">450 MB</span>
+</div>
+</div>
+<!-- Right Pane: Data Table -->
+<div class="flex-1 p-container-padding flex flex-col bg-surface/10 overflow-hidden relative">
+<!-- Radial glow for detail view -->
+<div class="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-primary/5 via-background/0 to-background/0 pointer-events-none"></div>
+<div class="flex justify-between items-end mb-6 z-10">
+<div>
+<h2 class="font-headline-lg text-headline-lg text-on-surface">Xcode DerivedData</h2>
+<p class="text-on-surface-variant mt-1 text-[13px]">Safe to remove. Xcode will rebuild these files on next compile.</p>
+</div>
+<div class="bg-primary/10 text-primary px-3 py-1 rounded-full font-label-caps text-label-caps flex items-center gap-1 border border-primary/20">
+<span class="material-symbols-outlined text-[14px]">verified</span>
+<span>SAFE TO PRUNE</span>
+</div>
+</div>
+<!-- Table Header -->
+<div class="flex font-label-caps text-label-caps text-on-surface-variant pb-2 border-b border-white/10 uppercase z-10">
+<div class="flex-[3]">Project Path</div>
+<div class="flex-1 text-right">Size</div>
+<div class="flex-1 text-right">Last Accessed</div>
+</div>
+<!-- Table Body -->
+<div class="flex-1 overflow-y-auto font-data-mono text-data-mono z-10 mt-2">
+<div class="flex items-center py-2 hover:bg-white/[0.02] transition-colors rounded">
+<div class="flex-[3] text-on-surface truncate pr-4">~/Library/Developer/Xcode/DerivedData/HuskApp-a1b2c3d4</div>
+<div class="flex-1 text-right text-primary">3.2 GB</div>
+<div class="flex-1 text-right text-on-surface-variant">2 days ago</div>
+</div>
+<div class="flex items-center py-2 hover:bg-white/[0.02] transition-colors rounded">
+<div class="flex-[3] text-on-surface truncate pr-4">~/Library/Developer/Xcode/DerivedData/DesignSystem-x9y8z7</div>
+<div class="flex-1 text-right text-primary">1.8 GB</div>
+<div class="flex-1 text-right text-on-surface-variant">1 week ago</div>
+</div>
+<div class="flex items-center py-2 hover:bg-white/[0.02] transition-colors rounded">
+<div class="flex-[3] text-on-surface truncate pr-4">~/Library/Developer/Xcode/DerivedData/CoreUtils-p4q5r6</div>
+<div class="flex-1 text-right text-primary">950 MB</div>
+<div class="flex-1 text-right text-on-surface-variant">3 weeks ago</div>
+</div>
+<div class="flex items-center py-2 hover:bg-white/[0.02] transition-colors rounded">
+<div class="flex-[3] text-on-surface truncate pr-4">~/Library/Developer/Xcode/DerivedData/ModuleIndex-m1n2</div>
+<div class="flex-1 text-right text-primary">2.4 GB</div>
+<div class="flex-1 text-right text-on-surface-variant">1 month ago</div>
+</div>
+</div>
+</div>
+</div>
+<!-- Primary CTA Overlay -->
+<div class="absolute bottom-6 left-1/2 -translate-x-1/2 ml-[32px] z-50">
+<button class="bg-primary-container text-[#000000] px-8 py-3 rounded-full font-headline-md text-headline-md shadow-[0_0_20px_rgba(232,164,92,0.3)] hover:scale-105 transition-transform border border-white/20 backdrop-blur-md flex items-center gap-2">
+<span class="material-symbols-outlined font-bold text-[20px]">delete_sweep</span>
+                    Prune 8.4 GB
+                </button>
+</div>
+</div>
+</div>
+<!-- Marketing Footer & Badges -->
+<div class="mt-12 flex flex-col items-center gap-6 relative z-10">
+<div class="flex gap-4">
+<div class="glass-panel px-4 py-2 rounded-full flex items-center gap-2 border border-white/10">
+<span class="material-symbols-outlined text-secondary text-[18px]">gpp_good</span>
+<span class="font-label-caps text-label-caps text-on-surface uppercase">Developer Trusted</span>
+</div>
+<div class="glass-panel px-4 py-2 rounded-full flex items-center gap-2 border border-white/10">
+<span class="material-symbols-outlined text-tertiary text-[18px]">memory</span>
+<span class="font-label-caps text-label-caps text-on-surface uppercase">AI Optimized Scan</span>
+</div>
+</div>
+<div class="font-label-caps text-label-caps text-on-surface-variant/60 tracking-[0.2em] uppercase mt-4">
+            Available on the Mac App Store
+        </div>
+</div>
+</body></html>

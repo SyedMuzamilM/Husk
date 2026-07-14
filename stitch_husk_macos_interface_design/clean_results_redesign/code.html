@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Husk - Clean Results</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&amp;family=JetBrains+Mono:wght@500&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "surface-container-lowest": "#0e0e0f",
+                        "on-secondary": "#003735",
+                        "on-background": "#e5e2e3",
+                        "on-tertiary-fixed": "#002118",
+                        "surface-container-low": "#1b1b1c",
+                        "tertiary-fixed": "#bbedda",
+                        "tertiary": "#a6d8c5",
+                        "on-secondary-fixed": "#00201f",
+                        "on-primary-fixed": "#2c1600",
+                        "on-error-container": "#ffdad6",
+                        "surface-container": "#1f1f20",
+                        "outline": "#9e8e7f",
+                        "error-container": "#93000a",
+                        "surface": "#131314",
+                        "surface-dim": "#131314",
+                        "on-primary-container": "#663a00",
+                        "inverse-on-surface": "#303031",
+                        "secondary-container": "#007d7a",
+                        "on-secondary-container": "#c6fffb",
+                        "inverse-primary": "#87520f",
+                        "primary-fixed": "#ffdcbd",
+                        "error": "#ffb4ab",
+                        "inverse-surface": "#e5e2e3",
+                        "secondary": "#77d6d2",
+                        "outline-variant": "#514439",
+                        "on-primary-fixed-variant": "#693c00",
+                        "on-tertiary-container": "#1c4c3e",
+                        "on-tertiary": "#01382b",
+                        "on-error": "#690005",
+                        "primary-container": "#e8a45c",
+                        "on-primary": "#492900",
+                        "secondary-fixed": "#94f3ee",
+                        "tertiary-container": "#8bbcaa",
+                        "surface-container-high": "#2a2a2b",
+                        "primary-fixed-dim": "#ffb86e",
+                        "primary": "#ffc284",
+                        "surface-tint": "#ffb86e",
+                        "surface-variant": "#353436",
+                        "on-tertiary-fixed-variant": "#1f4f41",
+                        "on-surface": "#e5e2e3",
+                        "secondary-fixed-dim": "#77d6d2",
+                        "surface-container-highest": "#353436",
+                        "on-surface-variant": "#d6c3b3",
+                        "on-secondary-fixed-variant": "#00504d",
+                        "background": "#131314",
+                        "surface-bright": "#39393a",
+                        "tertiary-fixed-dim": "#9fd1be"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    "spacing": {
+                        "gutter-md": "16px",
+                        "container-padding": "24px",
+                        "card-gap": "12px",
+                        "rail-width": "64px"
+                    },
+                    "fontFamily": {
+                        "label-caps": ["Inter"],
+                        "body-md": ["Inter"],
+                        "headline-md": ["Inter"],
+                        "headline-lg": ["Inter"],
+                        "data-mono": ["JetBrains Mono"]
+                    },
+                    "fontSize": {
+                        "label-caps": ["11px", { "lineHeight": "16px", "letterSpacing": "0.05em", "fontWeight": "700" }],
+                        "body-md": ["14px", { "lineHeight": "20px", "fontWeight": "400" }],
+                        "headline-md": ["20px", { "lineHeight": "28px", "fontWeight": "600" }],
+                        "headline-lg": ["28px", { "lineHeight": "34px", "letterSpacing": "-0.02em", "fontWeight": "600" }],
+                        "data-mono": ["13px", { "lineHeight": "16px", "letterSpacing": "-0.01em", "fontWeight": "500" }]
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+        .glass-card {
+            background-color: rgba(27, 27, 28, 0.4);
+            backdrop-filter: blur(30px);
+            -webkit-backdrop-filter: blur(30px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1);
+        }
+        .radial-bg {
+            background: radial-gradient(circle at center, rgba(232, 164, 92, 0.05) 0%, rgba(19, 19, 20, 1) 70%);
+        }
+        .data-table-row:nth-child(even) {
+            background-color: rgba(255, 255, 255, 0.02);
+        }
+    </style>
+</head>
+<body class="bg-background text-on-surface h-screen w-screen overflow-hidden flex font-body-md radial-bg">
+<!-- Ambient Glow Layer -->
+<div class="absolute inset-0 pointer-events-none z-0">
+<div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] bg-primary/10 rounded-full blur-[120px] opacity-20"></div>
+</div>
+<!-- Side Navigation Rail -->
+<nav class="fixed left-0 top-0 h-full w-rail-width bg-surface-container-lowest/50 dark:bg-surface-container-lowest/50 backdrop-blur-2xl border-r border-white/5 flex flex-col items-center py-6 gap-8 z-50">
+<!-- Brand/Avatar removed per styling intent, leaving space -->
+<!-- Tabs -->
+<div class="flex flex-col gap-4 flex-1 w-full items-center">
+<button class="text-on-surface-variant/60 p-2 hover:text-primary hover:bg-primary/5 transition-all rounded-full group" title="Dashboard">
+<span class="material-symbols-outlined text-[24px]">space_dashboard</span>
+<span class="sr-only">Dashboard</span>
+</button>
+<button class="bg-primary/10 text-primary rounded-full p-2 hover:text-primary hover:bg-primary/5 transition-all scale-90 duration-150" title="Caches">
+<span class="material-symbols-outlined text-[24px] font-variation-settings: 'FILL' 1;">layers</span>
+<span class="sr-only">Caches</span>
+</button>
+<button class="text-on-surface-variant/60 p-2 hover:text-primary hover:bg-primary/5 transition-all rounded-full group" title="Logs">
+<span class="material-symbols-outlined text-[24px]">terminal</span>
+<span class="sr-only">Logs</span>
+</button>
+<button class="text-on-surface-variant/60 p-2 hover:text-primary hover:bg-primary/5 transition-all rounded-full group" title="Artifacts">
+<span class="material-symbols-outlined text-[24px]">inventory_2</span>
+<span class="sr-only">Artifacts</span>
+</button>
+</div>
+<div class="flex flex-col gap-4 w-full items-center mb-4">
+<button class="text-on-surface-variant/60 p-2 hover:text-primary hover:bg-primary/5 transition-all rounded-full group" title="Settings">
+<span class="material-symbols-outlined text-[24px]">settings</span>
+<span class="sr-only">Settings</span>
+</button>
+</div>
+</nav>
+<!-- Main Content Area -->
+<main class="ml-rail-width flex-1 flex flex-col h-full relative z-10 p-container-padding">
+<!-- Header -->
+<header class="flex items-center justify-between mb-8 shrink-0">
+<div>
+<h1 class="font-headline-lg text-headline-lg text-on-surface mb-1">Caches &amp; Derived Data</h1>
+<p class="font-body-md text-body-md text-on-surface-variant">Review items ready for pruning.</p>
+</div>
+<div class="flex items-center gap-4">
+<button class="flex items-center gap-2 px-4 py-2 rounded-full border border-outline-variant text-on-surface-variant hover:text-on-surface hover:bg-white/5 transition-colors">
+<span class="material-symbols-outlined text-[18px]">filter_list</span>
+<span class="font-label-caps text-label-caps">Filter</span>
+</button>
+</div>
+</header>
+<!-- Split View Layout -->
+<div class="flex-1 flex gap-container-padding min-h-0 mb-20">
+<!-- Left Pane: Categories -->
+<div class="w-1/3 flex flex-col gap-card-gap glass-card rounded-xl overflow-hidden p-4">
+<div class="px-2 pb-2 mb-2 border-b border-white/5 flex justify-between items-center text-on-surface-variant">
+<span class="font-label-caps text-label-caps uppercase">Category</span>
+<span class="font-label-caps text-label-caps uppercase">Size</span>
+</div>
+<div class="overflow-y-auto flex-1 pr-2 space-y-1">
+<!-- Category Item: Xcode -->
+<div class="flex items-center justify-between p-3 rounded-lg bg-white/5 cursor-pointer border border-primary/20">
+<div class="flex items-center gap-3">
+<span class="material-symbols-outlined text-primary">developer_board</span>
+<div>
+<div class="font-body-md text-body-md text-on-surface font-medium">Developer</div>
+<div class="flex items-center gap-2 mt-1">
+<span class="inline-flex items-center justify-center px-2 py-0.5 rounded text-[10px] font-bold bg-[#1B5E20]/20 text-[#4CAF50] uppercase tracking-wider">Safe</span>
+<span class="text-[12px] text-on-surface-variant">Xcode DerivedData</span>
+</div>
+</div>
+</div>
+<span class="font-data-mono text-data-mono text-primary">18.4 GB</span>
+</div>
+<!-- Category Item: Browsers -->
+<div class="flex items-center justify-between p-3 rounded-lg hover:bg-white/5 cursor-pointer transition-colors group">
+<div class="flex items-center gap-3">
+<span class="material-symbols-outlined text-on-surface-variant group-hover:text-on-surface transition-colors">language</span>
+<div>
+<div class="font-body-md text-body-md text-on-surface font-medium">Browsers</div>
+<div class="flex items-center gap-2 mt-1">
+<span class="inline-flex items-center justify-center px-2 py-0.5 rounded text-[10px] font-bold bg-[#1B5E20]/20 text-[#4CAF50] uppercase tracking-wider">Safe</span>
+<span class="text-[12px] text-on-surface-variant">Safari, Chrome</span>
+</div>
+</div>
+</div>
+<span class="font-data-mono text-data-mono text-on-surface-variant">4.2 GB</span>
+</div>
+<!-- Category Item: User Caches -->
+<div class="flex items-center justify-between p-3 rounded-lg hover:bg-white/5 cursor-pointer transition-colors group">
+<div class="flex items-center gap-3">
+<span class="material-symbols-outlined text-on-surface-variant group-hover:text-on-surface transition-colors">folder_open</span>
+<div>
+<div class="font-body-md text-body-md text-on-surface font-medium">User Caches</div>
+<div class="flex items-center gap-2 mt-1">
+<span class="inline-flex items-center justify-center px-2 py-0.5 rounded text-[10px] font-bold bg-primary/10 text-primary uppercase tracking-wider">Review</span>
+<span class="text-[12px] text-on-surface-variant">App specific</span>
+</div>
+</div>
+</div>
+<span class="font-data-mono text-data-mono text-on-surface-variant">6.1 GB</span>
+</div>
+<!-- Category Item: System Logs -->
+<div class="flex items-center justify-between p-3 rounded-lg hover:bg-white/5 cursor-pointer transition-colors group">
+<div class="flex items-center gap-3">
+<span class="material-symbols-outlined text-on-surface-variant group-hover:text-on-surface transition-colors">article</span>
+<div>
+<div class="font-body-md text-body-md text-on-surface font-medium">System Logs</div>
+<div class="flex items-center gap-2 mt-1">
+<span class="inline-flex items-center justify-center px-2 py-0.5 rounded text-[10px] font-bold bg-[#1B5E20]/20 text-[#4CAF50] uppercase tracking-wider">Safe</span>
+<span class="text-[12px] text-on-surface-variant">Diagnostic data</span>
+</div>
+</div>
+</div>
+<span class="font-data-mono text-data-mono text-on-surface-variant">1.8 GB</span>
+</div>
+<!-- Category Item: Trash -->
+<div class="flex items-center justify-between p-3 rounded-lg hover:bg-white/5 cursor-pointer transition-colors group">
+<div class="flex items-center gap-3">
+<span class="material-symbols-outlined text-on-surface-variant group-hover:text-on-surface transition-colors">delete</span>
+<div>
+<div class="font-body-md text-body-md text-on-surface font-medium">Trash</div>
+<div class="flex items-center gap-2 mt-1">
+<span class="inline-flex items-center justify-center px-2 py-0.5 rounded text-[10px] font-bold bg-[#E65100]/20 text-[#FF9800] uppercase tracking-wider">Caution</span>
+<span class="text-[12px] text-on-surface-variant">Deleted items</span>
+</div>
+</div>
+</div>
+<span class="font-data-mono text-data-mono text-on-surface-variant">2.1 GB</span>
+</div>
+</div>
+</div>
+<!-- Right Pane: Detailed Inspector -->
+<div class="flex-1 flex flex-col glass-card rounded-xl p-6 overflow-hidden">
+<div class="flex items-start justify-between mb-6 shrink-0">
+<div>
+<h2 class="font-headline-md text-headline-md text-on-surface flex items-center gap-3">
+<span class="material-symbols-outlined text-primary text-[28px]">developer_board</span>
+                            Xcode DerivedData
+                        </h2>
+<p class="font-body-md text-body-md text-on-surface-variant mt-2 max-w-xl">
+                            Intermediate build results, generated indices, and logs used by Xcode to speed up subsequent builds. 
+                        </p>
+</div>
+<div class="text-right">
+<div class="font-data-mono text-data-mono text-primary text-xl">18.4 GB</div>
+<div class="font-label-caps text-label-caps text-on-surface-variant uppercase mt-1">Total Size</div>
+</div>
+</div>
+<div class="mb-6 p-4 rounded-lg bg-surface-container-low/50 border border-white/5 shrink-0">
+<h3 class="font-label-caps text-label-caps text-on-surface uppercase mb-2">Why remove this?</h3>
+<p class="font-body-md text-body-md text-on-surface-variant text-sm">
+                        Removing these files is completely safe. Xcode will regenerate them automatically during your next build. This is highly recommended to free up significant disk space and resolve strange build errors.
+                    </p>
+</div>
+<div class="flex-1 overflow-y-auto pr-2">
+<h3 class="font-label-caps text-label-caps text-on-surface-variant uppercase mb-4 px-2">Largest Sub-folders</h3>
+<div class="space-y-4">
+<!-- Sub-folder item -->
+<div class="p-2 data-table-row rounded">
+<div class="flex justify-between items-center mb-1">
+<span class="font-data-mono text-data-mono text-on-surface text-[12px]">App-abcd...efgh/Build/Products</span>
+<span class="font-data-mono text-data-mono text-on-surface-variant text-[12px]">8.2 GB</span>
+</div>
+<div class="w-full bg-surface-container-highest rounded-full h-1.5 overflow-hidden">
+<div class="bg-primary h-1.5 rounded-full" style="width: 45%"></div>
+</div>
+</div>
+<!-- Sub-folder item -->
+<div class="p-2 data-table-row rounded">
+<div class="flex justify-between items-center mb-1">
+<span class="font-data-mono text-data-mono text-on-surface text-[12px]">FrameworkX-zyxw...vuts/Index/DataStore</span>
+<span class="font-data-mono text-data-mono text-on-surface-variant text-[12px]">4.1 GB</span>
+</div>
+<div class="w-full bg-surface-container-highest rounded-full h-1.5 overflow-hidden">
+<div class="bg-primary/80 h-1.5 rounded-full" style="width: 22%"></div>
+</div>
+</div>
+<!-- Sub-folder item -->
+<div class="p-2 data-table-row rounded">
+<div class="flex justify-between items-center mb-1">
+<span class="font-data-mono text-data-mono text-on-surface text-[12px]">ProjectY-ijkl...mnop/Build/Intermediates.noindex</span>
+<span class="font-data-mono text-data-mono text-on-surface-variant text-[12px]">3.5 GB</span>
+</div>
+<div class="w-full bg-surface-container-highest rounded-full h-1.5 overflow-hidden">
+<div class="bg-primary/60 h-1.5 rounded-full" style="width: 19%"></div>
+</div>
+</div>
+<!-- Sub-folder item -->
+<div class="p-2 data-table-row rounded">
+<div class="flex justify-between items-center mb-1">
+<span class="font-data-mono text-data-mono text-on-surface text-[12px]">ModuleZ-qrst...uvwx/Logs/Build</span>
+<span class="font-data-mono text-data-mono text-on-surface-variant text-[12px]">1.2 GB</span>
+</div>
+<div class="w-full bg-surface-container-highest rounded-full h-1.5 overflow-hidden">
+<div class="bg-primary/40 h-1.5 rounded-full" style="width: 6%"></div>
+</div>
+</div>
+<!-- Sub-folder item -->
+<div class="p-2 data-table-row rounded">
+<div class="flex justify-between items-center mb-1">
+<span class="font-data-mono text-data-mono text-on-surface text-[12px]">App-abcd...efgh/Logs/Test</span>
+<span class="font-data-mono text-data-mono text-on-surface-variant text-[12px]">1.0 GB</span>
+</div>
+<div class="w-full bg-surface-container-highest rounded-full h-1.5 overflow-hidden">
+<div class="bg-primary/40 h-1.5 rounded-full" style="width: 5%"></div>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+</main>
+<!-- Bottom Fixed Action Bar -->
+<div class="fixed bottom-0 right-0 left-[64px] h-20 glass-card border-t border-white/5 flex items-center justify-between px-container-padding z-40 bg-surface-container-lowest/80">
+<div class="flex items-center gap-4">
+<div class="flex items-baseline gap-2">
+<span class="font-data-mono text-data-mono text-primary text-2xl font-bold">32.6 GB</span>
+<span class="font-label-caps text-label-caps text-on-surface-variant uppercase tracking-widest">Selected</span>
+</div>
+</div>
+<button class="bg-primary-container text-on-primary-container px-8 py-3 rounded-full font-headline-md text-headline-md text-sm hover:opacity-90 transition-opacity flex items-center gap-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.4)]">
+<span class="material-symbols-outlined text-[20px]">delete_sweep</span>
+            Move to Trash
+        </button>
+</div>
+</body></html>

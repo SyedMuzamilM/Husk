@@ -16,116 +16,131 @@ struct CacheDetailPanel: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            HStack {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("Cache details")
-                        .font(.headline)
-                    Text(item.name)
-                        .font(.title3.weight(.semibold))
-                        .lineLimit(1)
+            HStack(alignment: .top) {
+                VStack(alignment: .leading, spacing: 6) {
+                    HStack(spacing: 8) {
+                        Image(systemName: "internaldrive")
+                            .foregroundStyle(Color.huskPrimary)
+                        Text(item.name)
+                            .font(.system(size: 16, weight: .semibold))
+                            .foregroundStyle(Color.huskText)
+                            .lineLimit(2)
+                    }
+                    Text(item.reason)
+                        .font(.system(size: 12))
+                        .foregroundStyle(Color.huskTextMuted)
+                        .fixedSize(horizontal: false, vertical: true)
                 }
                 Spacer()
-                SafetyBadge(label: item.safety)
+                VStack(alignment: .trailing, spacing: 4) {
+                    Text(ByteFormat.string(for: item.byteCount))
+                        .font(.system(size: 18, weight: .semibold, design: .monospaced))
+                        .foregroundStyle(Color.huskPrimary)
+                    Text("TOTAL SIZE")
+                        .font(.system(size: 9, weight: .bold))
+                        .tracking(0.8)
+                        .foregroundStyle(Color.huskTextMuted)
+                }
             }
-            .padding(16)
-
-            Divider()
+            .padding(18)
 
             ScrollView {
                 VStack(alignment: .leading, spacing: 14) {
-                    summaryBlock
+                    metaBlock
                     if isLoading {
-                        HStack {
-                            ProgressView()
-                                .controlSize(.small)
+                        HStack(spacing: 10) {
+                            ProgressView().controlSize(.small).tint(Color.huskPrimary)
                             Text("Analyzing contents…")
-                                .foregroundStyle(.secondary)
+                                .font(.caption)
+                                .foregroundStyle(Color.huskTextMuted)
                         }
-                        .padding(.vertical, 8)
                     } else if let report {
-                        breakdownBlock(report)
+                        breakdown(report)
                     }
                 }
-                .padding(16)
+                .padding(.horizontal, 18)
+                .padding(.bottom, 18)
             }
 
-            Divider()
+            Divider().overlay(Color.huskBorder)
+
             HStack {
-                Button("Reveal in Finder") {
-                    onReveal(item.path)
-                }
-                Button(isSelected ? "Deselect" : "Select for Trash") {
+                Button("Reveal") { onReveal(item.path) }
+                    .buttonStyle(.plain)
+                    .foregroundStyle(Color.huskTextSecondary)
+                Spacer()
+                Button(isSelected ? "Deselect" : "Select") {
                     onToggleSelect()
                 }
-                .buttonStyle(.borderedProminent)
-                Spacer()
+                .buttonStyle(.plain)
+                .fontWeight(.semibold)
+                .foregroundStyle(Color.huskPrimary)
             }
-            .padding(12)
+            .padding(14)
         }
-        .frame(minWidth: 300, idealWidth: 340, maxWidth: 400)
-        .background(Color(nsColor: .windowBackgroundColor))
     }
 
-    private var summaryBlock: some View {
+    private var metaBlock: some View {
         VStack(alignment: .leading, spacing: 8) {
-            detailRow("Path", item.path, mono: true)
-            detailRow("Size", ByteFormat.string(for: item.byteCount))
-            detailRow("Category", item.categoryName)
-            detailRow("Why", item.reason)
-            if let modified = item.modified {
-                detailRow(
-                    "Modified",
-                    modified.formatted(date: .abbreviated, time: .shortened)
-                )
-            }
-            if let report {
-                detailRow("Immediate items", "\(report.immediateChildren) (\(report.folderCountApprox) folders · \(report.fileCountApprox) files)")
-                if let mod = report.modified, item.modified == nil {
-                    detailRow("Modified", mod.formatted(date: .abbreviated, time: .shortened))
+            labelBlock("WHY REMOVE THIS?", item.reason)
+            labelBlock("PATH", item.path, mono: true)
+            HStack(spacing: 16) {
+                labelBlock("SAFETY", item.safety.title)
+                if let c = item.entryCount {
+                    labelBlock("ENTRIES", "\(c)")
                 }
-            }
-            if let count = item.entryCount {
-                detailRow("Top-level entries", "\(count)")
+                if let m = item.modified {
+                    labelBlock("MODIFIED", m.formatted(date: .abbreviated, time: .omitted))
+                }
             }
         }
         .padding(12)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(.background.secondary, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+        .background(
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                .fill(Color.huskSurfaceHigh.opacity(0.55))
+        )
     }
 
-    private func breakdownBlock(_ report: CacheDetailReport) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text("Largest contents")
-                .font(.subheadline.weight(.semibold))
-            Text("Top \(report.topEntries.count) items inside this path (one level).")
-                .font(.caption)
-                .foregroundStyle(.secondary)
+    private func breakdown(_ report: CacheDetailReport) -> some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text("LARGEST SUB-FOLDERS")
+                .font(.system(size: 10, weight: .bold))
+                .tracking(0.8)
+                .foregroundStyle(Color.huskTextMuted)
 
             if report.topEntries.isEmpty {
                 Text("No readable children.")
-                    .foregroundStyle(.secondary)
+                    .font(.caption)
+                    .foregroundStyle(Color.huskTextMuted)
             } else {
-                ForEach(report.topEntries) { entry in
-                    HStack(alignment: .top, spacing: 8) {
-                        Image(systemName: entry.isDirectory ? "folder.fill" : "doc")
-                            .foregroundStyle(Color.accentColor)
-                            .frame(width: 16)
-                        VStack(alignment: .leading, spacing: 2) {
+                ForEach(report.topEntries.prefix(12)) { entry in
+                    VStack(alignment: .leading, spacing: 4) {
+                        HStack {
                             Text(entry.name)
-                                .font(.callout.weight(.medium))
+                                .font(.system(size: 12, design: .monospaced))
+                                .foregroundStyle(Color.huskText)
                                 .lineLimit(1)
-                            if let c = entry.childCount {
-                                Text("\(c) items inside")
-                                    .font(.caption2)
-                                    .foregroundStyle(.secondary)
+                                .truncationMode(.middle)
+                            Spacer()
+                            Text(ByteFormat.string(for: entry.byteCount))
+                                .font(.system(size: 11, weight: .medium, design: .monospaced))
+                                .foregroundStyle(Color.huskPrimary)
+                        }
+                        GeometryReader { geo in
+                            let frac = report.totalBytes > 0
+                                ? CGFloat(entry.byteCount) / CGFloat(report.totalBytes)
+                                : 0
+                            ZStack(alignment: .leading) {
+                                Capsule().fill(Color.white.opacity(0.06))
+                                Capsule()
+                                    .fill(Color.huskPrimary.opacity(0.75))
+                                    .frame(width: max(4, geo.size.width * min(frac, 1)))
                             }
                         }
-                        Spacer(minLength: 4)
-                        Text(ByteFormat.string(for: entry.byteCount))
-                            .font(.caption.monospacedDigit().weight(.semibold))
+                        .frame(height: 4)
                     }
-                    .padding(.vertical, 4)
                     .contentShape(Rectangle())
+                    .onTapGesture(count: 2) { onReveal(entry.path) }
                     .contextMenu {
                         Button("Reveal") { onReveal(entry.path) }
                         Button("Copy Path") {
@@ -133,34 +148,22 @@ struct CacheDetailPanel: View {
                             NSPasteboard.general.setString(entry.path, forType: .string)
                         }
                     }
-                    .onTapGesture(count: 2) {
-                        onReveal(entry.path)
-                    }
-
-                    // Share bar
-                    GeometryReader { geo in
-                        let fraction = report.totalBytes > 0
-                            ? CGFloat(entry.byteCount) / CGFloat(report.totalBytes)
-                            : 0
-                        Capsule()
-                            .fill(Color.accentColor.opacity(0.25))
-                            .frame(width: max(4, geo.size.width * min(fraction, 1)), height: 4)
-                    }
-                    .frame(height: 4)
                 }
             }
         }
     }
 
-    private func detailRow(_ title: String, _ value: String, mono: Bool = false) -> some View {
+    private func labelBlock(_ title: String, _ value: String, mono: Bool = false) -> some View {
         VStack(alignment: .leading, spacing: 2) {
             Text(title)
-                .font(.caption2.weight(.semibold))
-                .foregroundStyle(.secondary)
+                .font(.system(size: 9, weight: .bold))
+                .tracking(0.6)
+                .foregroundStyle(Color.huskTextMuted)
             Text(value)
-                .font(mono ? .caption.monospaced() : .callout)
+                .font(mono ? .system(size: 11, design: .monospaced) : .system(size: 12))
+                .foregroundStyle(Color.huskTextSecondary)
                 .textSelection(.enabled)
                 .lineLimit(mono ? 3 : 4)
-            }
+        }
     }
 }

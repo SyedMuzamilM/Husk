@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Welcome to Husk</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&amp;family=JetBrains+Mono:wght@500&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "surface-container-lowest": "#0e0e0f",
+                        "on-secondary": "#003735",
+                        "on-background": "#e5e2e3",
+                        "on-tertiary-fixed": "#002118",
+                        "surface-container-low": "#1b1b1c",
+                        "tertiary-fixed": "#bbedda",
+                        "tertiary": "#a6d8c5",
+                        "on-secondary-fixed": "#00201f",
+                        "on-primary-fixed": "#2c1600",
+                        "on-error-container": "#ffdad6",
+                        "surface-container": "#1f1f20",
+                        "outline": "#9e8e7f",
+                        "error-container": "#93000a",
+                        "surface": "#131314",
+                        "surface-dim": "#131314",
+                        "on-primary-container": "#663a00",
+                        "inverse-on-surface": "#303031",
+                        "secondary-container": "#007d7a",
+                        "on-secondary-container": "#c6fffb",
+                        "inverse-primary": "#87520f",
+                        "primary-fixed": "#ffdcbd",
+                        "error": "#ffb4ab",
+                        "inverse-surface": "#e5e2e3",
+                        "secondary": "#77d6d2",
+                        "outline-variant": "#514439",
+                        "on-primary-fixed-variant": "#693c00",
+                        "on-tertiary-container": "#1c4c3e",
+                        "on-tertiary": "#01382b",
+                        "on-error": "#690005",
+                        "primary-container": "#e8a45c",
+                        "on-primary": "#492900",
+                        "secondary-fixed": "#94f3ee",
+                        "tertiary-container": "#8bbcaa",
+                        "surface-container-high": "#2a2a2b",
+                        "primary-fixed-dim": "#ffb86e",
+                        "primary": "#ffc284",
+                        "surface-tint": "#ffb86e",
+                        "surface-variant": "#353436",
+                        "on-tertiary-fixed-variant": "#1f4f41",
+                        "on-surface": "#e5e2e3",
+                        "secondary-fixed-dim": "#77d6d2",
+                        "surface-container-highest": "#353436",
+                        "on-surface-variant": "#d6c3b3",
+                        "on-secondary-fixed-variant": "#00504d",
+                        "background": "#131314",
+                        "surface-bright": "#39393a",
+                        "tertiary-fixed-dim": "#9fd1be"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    "spacing": {
+                        "gutter-md": "16px",
+                        "container-padding": "24px",
+                        "card-gap": "12px",
+                        "rail-width": "64px"
+                    },
+                    "fontFamily": {
+                        "label-caps": ["Inter"],
+                        "body-md": ["Inter"],
+                        "headline-md": ["Inter"],
+                        "headline-lg": ["Inter"],
+                        "data-mono": ["JetBrains Mono"]
+                    },
+                    "fontSize": {
+                        "label-caps": ["11px", { "lineHeight": "16px", "letterSpacing": "0.05em", "fontWeight": "700" }],
+                        "body-md": ["14px", { "lineHeight": "20px", "fontWeight": "400" }],
+                        "headline-md": ["20px", { "lineHeight": "28px", "fontWeight": "600" }],
+                        "headline-lg": ["28px", { "lineHeight": "34px", "letterSpacing": "-0.02em", "fontWeight": "600" }],
+                        "data-mono": ["13px", { "lineHeight": "16px", "letterSpacing": "-0.01em", "fontWeight": "500" }]
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+        body {
+            background-color: theme('colors.background');
+            color: theme('colors.on-surface');
+            overflow: hidden;
+            margin: 0;
+            padding: 0;
+            min-height: 100vh;
+        }
+
+        /* Glassmorphism utility classes */
+        .glass-card {
+            background: rgba(255, 255, 255, 0.02);
+            backdrop-filter: blur(30px) saturate(150%);
+            -webkit-backdrop-filter: blur(30px) saturate(150%);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
+        }
+
+        /* Deep immersive background glow */
+        .ambient-glow {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 80vw;
+            height: 80vw;
+            max-width: 800px;
+            max-height: 800px;
+            background: radial-gradient(circle, rgba(232, 164, 92, 0.15) 0%, rgba(19, 19, 20, 0) 70%);
+            pointer-events: none;
+            z-index: 0;
+        }
+        
+        /* Inner sheen border for buttons */
+        .btn-sheen {
+            box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.2);
+        }
+    </style>
+</head>
+<body class="antialiased flex h-screen w-full font-body-md text-body-md">
+<!-- Ambient Background Glow -->
+<div class="ambient-glow"></div>
+<!-- SideNavBar (Suppressed due to Linear/Transactional intent, but keeping rail structure as requested by prompt "Narrow left icon rail") -->
+<!-- Note: Following strict rules, "Automatic Suppression: You MUST exclude the navigation shell if the page intent is: Linear/Transactional: Login, Sign-up, Onboarding..." -->
+<!-- However, the prompt explicitly asks for "Narrow left icon rail". I will implement a minimal semantic shell representation that fits the onboard/welcome context without full nav capability. -->
+<nav class="bg-surface-container-lowest/50 backdrop-blur-2xl border-r border-white/5 flex flex-col items-center py-6 gap-8 z-50 fixed left-0 top-0 h-full w-rail-width">
+<!-- Logo Area (Hidden as per JSON, but leaving structure) -->
+<div class="hidden font-headline-md text-headline-md text-primary tracking-tight">Husk</div>
+<!-- Simplified Icons for Welcome Context -->
+<div class="flex flex-col gap-6 mt-8">
+<div class="text-primary/40 p-2 flex justify-center items-center rounded-full opacity-50 cursor-default" title="Dashboard">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 0;">space_dashboard</span>
+</div>
+<div class="text-primary/40 p-2 flex justify-center items-center rounded-full opacity-50 cursor-default" title="Caches">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 0;">layers</span>
+</div>
+<div class="text-primary/40 p-2 flex justify-center items-center rounded-full opacity-50 cursor-default" title="Logs">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 0;">terminal</span>
+</div>
+</div>
+</nav>
+<!-- Main Content Canvas -->
+<main class="flex-1 ml-rail-width relative z-10 flex flex-col justify-center items-center p-container-padding">
+<div class="w-full max-w-2xl flex flex-col items-center justify-center text-center space-y-12">
+<!-- Hero Image / 3D Icon -->
+<div class="relative w-64 h-64 md:w-80 md:h-80 flex items-center justify-center drop-shadow-2xl">
+<!-- Using requested placeholder -->
+<img alt="" class="w-full h-full object-contain filter drop-shadow-[0_0_30px_rgba(232,164,92,0.3)]" src="https://lh3.googleusercontent.com/aida/AP1WRLupHSJiWcDJABSJcCyFgxSKrUWKEcOKSQSsyPAkvvSrB74nhh6q4b30beSRT8auUD3HapZphTQ_G5J8ICHCw_v-tehVZmzxMHERldwYpqOUovslwnjCTykTvG7VPwUSUD1djlC9oUIOSIhdcgDO2xf9SDh_PMioyJm5qyjQyQsferXrk9ScwH_HdVElK9QdYQGbbvHsLUJtoZFPrSRJ1-YlkXuvxxPlfIrhlAk1FGUSMZg83LK4YsVJo5U"/>
+</div>
+<!-- Typography & Messaging -->
+<div class="space-y-4">
+<h1 class="font-headline-lg text-headline-lg text-on-surface tracking-tight">Welcome to Husk</h1>
+<p class="font-body-md text-body-md text-on-surface-variant max-w-md mx-auto">
+                    Peel regenerable clutter. Preview every path. Trash only.
+                </p>
+</div>
+<!-- Primary Action -->
+<button class="bg-primary-container text-on-primary-container hover:bg-primary transition-all duration-200 rounded-full px-12 py-4 font-headline-md text-headline-md shadow-lg shadow-primary-container/20 btn-sheen transform hover:scale-105 active:scale-95 flex items-center gap-2">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">search</span>
+                Scan
+            </button>
+</div>
+<!-- Footer Footer Messaging -->
+<div class="absolute bottom-8 w-full text-center left-0 pl-rail-width">
+<p class="font-label-caps text-label-caps text-on-surface-variant/50 uppercase tracking-widest">
+                Zero telemetry · Local only · $0 free / $9.99 lifetime
+            </p>
+</div>
+</main>
+</body></html>

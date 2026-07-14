@@ -1,0 +1,241 @@
+<!DOCTYPE html><html lang="en" class="dark"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=JetBrains+Mono:wght@500&amp;family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=block" rel="stylesheet"><script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script><script id="tailwind-config">try{
+        tailwind.config = {
+          darkMode: "class",
+          theme: {
+            extend: {
+              "colors": {
+                      "secondary": "#77d6d2",
+                      "on-primary-container": "#663a00",
+                      "tertiary-container": "#8bbcaa",
+                      "surface-tint": "#ffb86e",
+                      "on-surface": "#e5e2e3",
+                      "surface-container-lowest": "#0e0e0f",
+                      "surface-bright": "#39393a",
+                      "on-primary": "#492900",
+                      "on-error-container": "#ffdad6",
+                      "primary-fixed-dim": "#ffb86e",
+                      "surface-container-low": "#1b1b1c",
+                      "on-secondary-container": "#c6fffb",
+                      "primary": "#ffc284",
+                      "surface-container-high": "#2a2a2b",
+                      "on-error": "#690005",
+                      "on-primary-fixed": "#2c1600",
+                      "surface-container-highest": "#353436",
+                      "tertiary-fixed": "#bbedda",
+                      "outline-variant": "#514439",
+                      "surface-variant": "#353436",
+                      "on-tertiary-fixed-variant": "#1f4f41",
+                      "surface-container": "#1f1f20",
+                      "on-background": "#e5e2e3",
+                      "surface-dim": "#131314",
+                      "on-secondary-fixed": "#00201f",
+                      "primary-fixed": "#ffdcbd",
+                      "primary-container": "#e8a45c",
+                      "on-tertiary": "#01382b",
+                      "inverse-surface": "#e5e2e3",
+                      "error": "#ffb4ab",
+                      "tertiary": "#a6d8c5",
+                      "on-primary-fixed-variant": "#693c00",
+                      "on-surface-variant": "#d6c3b3",
+                      "on-tertiary-fixed": "#002118",
+                      "tertiary-fixed-dim": "#9fd1be",
+                      "background": "#131314",
+                      "inverse-on-surface": "#303031",
+                      "secondary-fixed": "#94f3ee",
+                      "on-secondary": "#003735",
+                      "surface": "#131314",
+                      "on-tertiary-container": "#1c4c3e",
+                      "inverse-primary": "#87520f",
+                      "secondary-container": "#007d7a",
+                      "outline": "#9e8e7f",
+                      "secondary-fixed-dim": "#77d6d2",
+                      "on-secondary-fixed-variant": "#00504d",
+                      "error-container": "#93000a"
+              },
+              "borderRadius": {
+                      "DEFAULT": "0.25rem",
+                      "lg": "0.5rem",
+                      "xl": "0.75rem",
+                      "full": "9999px"
+              },
+              "spacing": {
+                      "gutter-md": "16px",
+                      "rail-width": "64px",
+                      "container-padding": "24px",
+                      "card-gap": "12px"
+              },
+              "fontFamily": {
+                      "headline-md": ["Inter"],
+                      "label-caps": ["Inter"],
+                      "headline-lg": ["Inter"],
+                      "body-md": ["Inter"],
+                      "data-mono": ["JetBrains Mono"]
+              },
+              "fontSize": {
+                      "headline-md": ["20px", {"lineHeight": "28px", "fontWeight": "600"}],
+                      "label-caps": ["11px", {"lineHeight": "16px", "letterSpacing": "0.05em", "fontWeight": "700"}],
+                      "headline-lg": ["28px", {"lineHeight": "34px", "letterSpacing": "-0.02em", "fontWeight": "600"}],
+                      "body-md": ["14px", {"lineHeight": "20px", "fontWeight": "400"}],
+                      "data-mono": ["13px", {"lineHeight": "16px", "letterSpacing": "-0.01em", "fontWeight": "500"}]
+              }
+            },
+          },
+        }
+    }catch(_e){}</script></head><body class="h-screen w-screen husk-gradient">
+<!-- Top AppBar (from JSON) -->
+<header class="w-full h-12 fixed top-0 left-0 pl-rail-width flex justify-between items-center px-container-padding bg-transparent z-50">
+<div class="flex items-center gap-4">
+<h1 class="font-headline-md text-headline-md text-on-surface">Settings</h1>
+</div>
+<div class="flex items-center gap-2">
+<button class="material-symbols-outlined text-on-surface-variant hover:text-primary transition-colors cursor-default">remove</button>
+<button class="material-symbols-outlined text-on-surface-variant hover:text-primary transition-colors cursor-default" data-original-icon="fullscreen">fullscreen</button>
+<button class="material-symbols-outlined text-on-surface-variant hover:text-primary transition-colors cursor-default">close</button>
+</div>
+</header>
+<!-- Side Navigation Rail (from JSON) -->
+<aside class="w-rail-width h-screen fixed left-0 top-0 border-r border-white/10 bg-surface/60 backdrop-blur-3xl flex flex-col items-center py-gutter-md gap-6 z-50">
+<div class="mb-4">
+<span class="font-headline-lg text-headline-lg text-primary">H</span>
+<div class="text-[8px] font-bold text-primary/40 uppercase tracking-tighter text-center">v1.0</div>
+</div>
+<nav class="flex flex-col gap-6 w-full items-center">
+<a href="#" class="group flex flex-col items-center gap-1 text-on-surface-variant p-2 hover:bg-white/5 transition-colors">
+<span class="material-symbols-outlined group-active:scale-90 transition-transform">mop</span>
+<span class="font-label-caps text-label-caps opacity-0 group-hover:opacity-100 transition-opacity">Clean</span>
+</a>
+<a href="#" class="group flex flex-col items-center gap-1 text-on-surface-variant p-2 hover:bg-white/5 transition-colors">
+<span class="material-symbols-outlined group-active:scale-90 transition-transform">analytics</span>
+<span class="font-label-caps text-label-caps opacity-0 group-hover:opacity-100 transition-opacity">Analyze</span>
+</a>
+<a href="#" class="group flex flex-col items-center gap-1 text-on-surface-variant p-2 hover:bg-white/5 transition-colors">
+<span class="material-symbols-outlined group-active:scale-90 transition-transform">apps</span>
+<span class="font-label-caps text-label-caps opacity-0 group-hover:opacity-100 transition-opacity">Apps</span>
+</a>
+<a href="#" class="group flex flex-col items-center gap-1 text-on-surface-variant p-2 hover:bg-white/5 transition-colors">
+<span class="material-symbols-outlined group-active:scale-90 transition-transform">speed</span>
+<span class="font-label-caps text-label-caps opacity-0 group-hover:opacity-100 transition-opacity">Status</span>
+</a>
+<a href="#" class="group flex flex-col items-center gap-1 text-on-surface-variant p-2 hover:bg-white/5 transition-colors">
+<span class="material-symbols-outlined group-active:scale-90 transition-transform">bolt</span>
+<span class="font-label-caps text-label-caps opacity-0 group-hover:opacity-100 transition-opacity">Optimize</span>
+</a>
+<a href="#" class="group flex flex-col items-center gap-1 bg-primary-container/20 text-primary rounded-full p-2 hover:bg-white/5 transition-colors">
+<span class="material-symbols-outlined group-active:scale-90 transition-transform">settings</span>
+<span class="font-label-caps text-label-caps opacity-100">Settings</span>
+</a>
+</nav>
+</aside>
+<!-- Main Content Canvas -->
+<main class="ml-rail-width pt-16 px-container-padding pb-container-padding h-screen overflow-y-auto">
+<div class="max-w-4xl mx-auto flex flex-col gap-8">
+<!-- Hero Header Section -->
+<section class="flex flex-col gap-2">
+<h2 class="font-headline-lg text-headline-lg text-on-surface">Preferences</h2>
+<p class="font-body-md text-body-md text-on-surface-variant max-w-lg">Manage your system privacy and application environment variables.</p>
+</section>
+<div class="grid grid-cols-1 md:grid-cols-2 gap-card-gap">
+<!-- Card 1: Full Disk Access -->
+<div class="glass-card rounded-xl p-gutter-md flex flex-col gap-4 group hover:border-primary/20 transition-all">
+<div class="flex justify-between items-start">
+<div class="flex flex-col gap-1">
+<span class="material-symbols-outlined text-primary text-3xl mb-2">database</span>
+<h3 class="font-headline-md text-headline-md">Full Disk Access</h3>
+<p class="font-body-md text-body-md text-on-surface-variant">Required for deep cleaning and log rotation across system libraries.</p>
+</div>
+<div class="flex items-center gap-2 px-3 py-1 rounded-full bg-[#1e2b20] border border-green-500/20">
+<div class="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse"></div>
+<span class="text-[11px] font-bold text-green-400 uppercase tracking-wider">Granted</span>
+</div>
+</div>
+<div class="mt-auto pt-4 flex gap-3">
+<button class="px-4 py-2 rounded-lg bg-surface-container-high text-on-surface text-sm font-medium hover:bg-surface-container-highest transition-colors">Test Permissions</button>
+</div>
+</div>
+<!-- Card 3: About Husk -->
+<div class="glass-card rounded-xl p-gutter-md flex flex-col items-center justify-center text-center gap-4 group">
+<div class="relative">
+<div class="absolute inset-0 bg-primary/20 blur-xl rounded-full scale-150 opacity-0 group-hover:opacity-100 transition-opacity"></div>
+<div class="w-20 h-20 rounded-2xl bg-gradient-to-br from-primary-container to-primary flex items-center justify-center relative z-10">
+<span class="material-symbols-outlined text-on-primary-container text-5xl">potted_plant</span>
+</div>
+</div>
+<div>
+<h3 class="font-headline-md text-headline-md text-on-surface">About Husk</h3>
+<p class="font-data-mono text-data-mono text-primary/60 mt-1">v1.0.0 (Build 2024.1)</p>
+</div>
+<div class="w-full h-px bg-white/5 my-2"></div>
+<p class="font-body-md text-body-md text-on-surface-variant italic">"Reveal the core by peeling away the husk."</p>
+<button class="font-label-caps text-label-caps text-on-surface-variant hover:text-primary flex items-center gap-1 transition-colors">
+                        CHECK FOR UPDATES <span class="material-symbols-outlined text-sm">north_east</span>
+</button>
+</div>
+<!-- Card 2: Privacy & Safety (Bento span) -->
+<div class="glass-card rounded-xl p-gutter-md md:col-span-2 flex flex-col md:flex-row gap-8">
+<div class="flex-1 flex flex-col gap-4">
+<div class="flex items-center gap-3">
+<span class="material-symbols-outlined text-secondary">security</span>
+<h3 class="font-headline-md text-headline-md">Privacy &amp; Safety</h3>
+</div>
+<p class="font-body-md text-body-md text-on-surface-variant">Husk is designed with a "Local First" philosophy. No data ever leaves your machine unless you explicitly export it.</p>
+<div class="flex flex-wrap gap-2 mt-2">
+<span class="px-3 py-1 rounded-full bg-white/5 border border-white/10 text-secondary text-[11px] font-bold uppercase tracking-wider">Zero Telemetry</span>
+<span class="px-3 py-1 rounded-full bg-white/5 border border-white/10 text-secondary text-[11px] font-bold uppercase tracking-wider">Local Processing Only</span>
+<span class="px-3 py-1 rounded-full bg-white/5 border border-white/10 text-secondary text-[11px] font-bold uppercase tracking-wider">Open Path Transparency</span>
+</div>
+</div>
+<div class="md:w-1/3 bg-white/5 rounded-lg p-4 flex flex-col gap-4">
+<div class="flex justify-between items-center">
+<span class="font-label-caps text-label-caps text-on-surface-variant">ENCRYPTION</span>
+<span class="text-xs font-data-mono text-green-400">AES-256 Active</span>
+</div>
+<div class="space-y-3">
+<div class="flex justify-between text-xs">
+<span class="text-on-surface-variant">System Logs Vault</span>
+<span class="material-symbols-outlined text-sm text-on-surface" style="font-variation-settings: 'FILL' 1;">lock</span>
+</div>
+<div class="w-full bg-white/10 h-1.5 rounded-full overflow-hidden">
+<div class="bg-secondary h-full w-[85%]"></div>
+</div>
+<div class="flex justify-between text-xs pt-1">
+<span class="text-on-surface-variant">Metadata Masking</span>
+<span class="material-symbols-outlined text-sm text-on-surface" style="font-variation-settings: 'FILL' 1;">lock</span>
+</div>
+<div class="w-full bg-white/10 h-1.5 rounded-full overflow-hidden">
+<div class="bg-secondary h-full w-[100%]"></div>
+</div>
+</div>
+</div>
+</div>
+</div>
+<!-- Bottom Action Footer -->
+<div class="fixed bottom-8 left-rail-width right-0 flex justify-center pointer-events-none">
+<div class="pointer-events-auto flex gap-4 p-1 rounded-full bg-surface-container-highest/40 backdrop-blur-md border border-white/10 shadow-2xl">
+<button class="bg-primary-container text-on-primary-container px-8 py-3 rounded-full font-bold text-sm flex items-center gap-2 hover:brightness-110 active:scale-95 transition-all shadow-lg">
+<span class="material-symbols-outlined">save</span>
+                        Apply Configuration
+                    </button>
+<button class="bg-transparent text-on-surface px-6 py-3 rounded-full font-medium text-sm hover:bg-white/5 transition-all">
+                        Reset to Defaults
+                    </button>
+</div>
+</div>
+</div>
+</main>
+<!-- Decorative Animated Background Subtle Shader Overlay -->
+<div class="fixed inset-0 pointer-events-none opacity-20 z-[-1]">
+<!-- Note-->
+</div>
+<script>
+        // Micro-interactions for glass hover effects
+        document.querySelectorAll('.glass-card').forEach(card => {
+            card.addEventListener('mousemove', (e) => {
+                const rect = card.getBoundingClientRect();
+                const x = e.clientX - rect.left;
+                const y = e.clientY - rect.top;
+                card.style.setProperty('--mouse-x', `${x}px`);
+                card.style.setProperty('--mouse-y', `${y}px`);
+            });
+        });
+    </script>
+</body></html>
