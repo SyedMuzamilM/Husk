@@ -2,7 +2,7 @@
 //  IconRail.swift
 //  Husk
 //
-//  Compact 64pt icon rail — replaces fat sidebar (stitch design).
+//  Compact 64pt icon rail — brand logo + section icons.
 //
 
 import SwiftUI
@@ -46,15 +46,11 @@ struct IconRail: View {
     private let main: [AppSection] = [.clean, .analyze, .apps, .status, .optimize]
 
     var body: some View {
-        VStack(spacing: 6) {
-            // Brand mark — transparent husk logo
-            Image("HuskLogo")
-                .resizable()
-                .interpolation(.high)
-                .aspectRatio(contentMode: .fit)
-                .frame(width: 32, height: 32)
-                .padding(.top, 14)
-                .padding(.bottom, 10)
+        VStack(spacing: 4) {
+            // Transparent husk logo (sidebar brand)
+            HuskBrandMark(size: 36, showGlow: true, glowRadius: 16)
+                .padding(.top, 16)
+                .padding(.bottom, 14)
                 .help("Husk")
 
             ForEach(main) { section in
@@ -64,7 +60,7 @@ struct IconRail: View {
             Spacer()
 
             railButton(.settings)
-                .padding(.bottom, 12)
+                .padding(.bottom, 14)
         }
         .frame(width: HuskTheme.railWidth)
         .background(

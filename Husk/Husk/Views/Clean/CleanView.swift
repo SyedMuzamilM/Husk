@@ -161,18 +161,7 @@ struct CleanView: View {
     private var heroReady: some View {
         VStack(spacing: 20) {
             Spacer()
-            ZStack {
-                Circle()
-                    .fill(Color.huskPrimary.opacity(0.14))
-                    .frame(width: 240, height: 240)
-                    .blur(radius: 36)
-                Image("HuskLogo")
-                    .resizable()
-                    .interpolation(.high)
-                    .aspectRatio(contentMode: .fit)
-                    .frame(width: 148, height: 148)
-                    .shadow(color: Color.huskPrimary.opacity(0.28), radius: 28, y: 10)
-            }
+            HuskBrandMark(size: 148, showGlow: true, glowRadius: 36)
             Text("Ready to peel.")
                 .font(.system(size: 28, weight: .semibold))
                 .foregroundStyle(Color.huskText)

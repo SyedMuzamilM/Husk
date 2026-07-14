@@ -6,6 +6,8 @@
 import SwiftUI
 
 struct ContentView: View {
+    @AppStorage("husk.hasCompletedOnboarding") private var hasCompletedOnboarding = false
+
     @State private var section: AppSection = .clean
     @State private var cleanModel = CleanViewModel()
     @State private var analyzeModel = AnalyzeViewModel()
@@ -15,6 +17,28 @@ struct ContentView: View {
     @State private var freeSpaceText = "—"
 
     var body: some View {
+        Group {
+            if hasCompletedOnboarding {
+                mainShell
+            } else {
+                OnboardingView {
+                    withAnimation(.easeInOut(duration: 0.25)) {
+                        hasCompletedOnboarding = true
+                    }
+                }
+                .environment(permissions)
+            }
+        }
+        .frame(minWidth: HuskTheme.minWindowWidth, minHeight: HuskTheme.minWindowHeight)
+        .preferredColorScheme(.dark)
+        .environment(permissions)
+        .task {
+            refreshFreeSpace()
+            permissions.refresh()
+        }
+    }
+
+    private var mainShell: some View {
         HStack(spacing: 0) {
             IconRail(selection: $section)
 
@@ -39,13 +63,6 @@ struct ContentView: View {
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
-        }
-        .frame(minWidth: HuskTheme.minWindowWidth, minHeight: HuskTheme.minWindowHeight)
-        .preferredColorScheme(.dark)
-        .environment(permissions)
-        .task {
-            refreshFreeSpace()
-            permissions.refresh()
         }
         .onChange(of: section) { _, newSection in
             refreshFreeSpace()

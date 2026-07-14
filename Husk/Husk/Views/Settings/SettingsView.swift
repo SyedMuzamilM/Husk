@@ -57,11 +57,7 @@ struct SettingsView: View {
                 HuskCard {
                     VStack(alignment: .leading, spacing: 8) {
                         HStack(spacing: 12) {
-                            Image("HuskLogo")
-                                .resizable()
-                                .interpolation(.high)
-                                .aspectRatio(contentMode: .fit)
-                                .frame(width: 40, height: 40)
+                            HuskBrandMark(size: 44, showGlow: false)
                             VStack(alignment: .leading, spacing: 2) {
                                 Text("About Husk")
                                     .font(.headline)
@@ -87,6 +83,23 @@ struct SettingsView: View {
                         bullet("Never count APFS purgeable as junk")
                         bullet("SIP and sensitive paths protected")
                         bullet("Zero telemetry")
+                    }
+                }
+
+                HuskCard {
+                    VStack(alignment: .leading, spacing: 10) {
+                        Text("Onboarding")
+                            .font(.headline)
+                            .foregroundStyle(Color.huskText)
+                        Text("Replay the welcome screen with the Husk logo and Full Disk Access steps.")
+                            .font(.caption)
+                            .foregroundStyle(Color.huskTextMuted)
+                        Button("Show welcome again") {
+                            UserDefaults.standard.set(false, forKey: "husk.hasCompletedOnboarding")
+                        }
+                        .buttonStyle(.plain)
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundStyle(Color.huskPrimary)
                     }
                 }
             }
