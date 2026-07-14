@@ -47,9 +47,11 @@ struct IconRail: View {
 
     var body: some View {
         VStack(spacing: 4) {
-            // Transparent husk logo (sidebar brand)
+            // Transparent husk logo (sidebar brand).
+            // Extra top inset keeps the mark clear of traffic lights
+            // when the window uses a hidden title bar.
             HuskBrandMark(size: 36, showGlow: true, glowRadius: 16)
-                .padding(.top, 16)
+                .padding(.top, 36)
                 .padding(.bottom, 14)
                 .help("Husk")
 

@@ -31,6 +31,8 @@ struct ContentView: View {
         }
         .frame(minWidth: HuskTheme.minWindowWidth, minHeight: HuskTheme.minWindowHeight)
         .preferredColorScheme(.dark)
+        // Hidden title bar: keep layout clear of traffic lights.
+        .ignoresSafeArea(edges: .top)
         .environment(permissions)
         .task {
             refreshFreeSpace()

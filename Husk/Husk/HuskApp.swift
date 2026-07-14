@@ -10,10 +10,13 @@ struct HuskApp: App {
     var body: some Scene {
         WindowGroup {
             ContentView()
+                // Keep window title empty so the system title bar doesn't show "Husk"
+                .navigationTitle("")
         }
         .defaultSize(width: 1120, height: 740)
-        .windowStyle(.titleBar)
-        .windowToolbarStyle(.unified(showsTitle: true))
+        // Compact chrome: traffic lights only, no centered app name title.
+        .windowStyle(.hiddenTitleBar)
+        .windowToolbarStyle(.unifiedCompact(showsTitle: false))
         .commands {
             CommandGroup(replacing: .newItem) {}
             CommandMenu("Husk") {
