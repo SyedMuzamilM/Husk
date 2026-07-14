@@ -163,19 +163,15 @@ struct CleanView: View {
             Spacer()
             ZStack {
                 Circle()
-                    .fill(Color.huskPrimary.opacity(0.12))
-                    .frame(width: 220, height: 220)
-                    .blur(radius: 30)
-                Image(systemName: "leaf.fill")
-                    .font(.system(size: 72, weight: .light))
-                    .foregroundStyle(
-                        LinearGradient(
-                            colors: [Color.huskPrimaryBright, Color.huskPrimary],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        )
-                    )
-                    .shadow(color: Color.huskPrimary.opacity(0.35), radius: 24, y: 8)
+                    .fill(Color.huskPrimary.opacity(0.14))
+                    .frame(width: 240, height: 240)
+                    .blur(radius: 36)
+                Image("HuskLogo")
+                    .resizable()
+                    .interpolation(.high)
+                    .aspectRatio(contentMode: .fit)
+                    .frame(width: 148, height: 148)
+                    .shadow(color: Color.huskPrimary.opacity(0.28), radius: 28, y: 10)
             }
             Text("Ready to peel.")
                 .font(.system(size: 28, weight: .semibold))

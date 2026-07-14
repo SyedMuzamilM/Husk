@@ -34,3 +34,5 @@ Package.resolved
 *.p12
 *.cer
 *.mobileprovision
+
+.venv-img/

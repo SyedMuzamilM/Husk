@@ -47,13 +47,14 @@ struct IconRail: View {
 
     var body: some View {
         VStack(spacing: 6) {
-            // Brand mark
-            Image(systemName: "leaf.fill")
-                .font(.system(size: 18, weight: .semibold))
-                .foregroundStyle(Color.huskPrimary)
-                .frame(width: 40, height: 40)
-                .padding(.top, 12)
-                .padding(.bottom, 8)
+            // Brand mark — transparent husk logo
+            Image("HuskLogo")
+                .resizable()
+                .interpolation(.high)
+                .aspectRatio(contentMode: .fit)
+                .frame(width: 32, height: 32)
+                .padding(.top, 14)
+                .padding(.bottom, 10)
                 .help("Husk")
 
             ForEach(main) { section in

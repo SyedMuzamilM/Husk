@@ -56,12 +56,21 @@ struct SettingsView: View {
 
                 HuskCard {
                     VStack(alignment: .leading, spacing: 8) {
-                        Label("About Husk", systemImage: "leaf.fill")
-                            .font(.headline)
-                            .foregroundStyle(Color.huskText)
-                        Text("Version \(Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "0.1.0")")
-                            .font(.system(size: 12, design: .monospaced))
-                            .foregroundStyle(Color.huskTextSecondary)
+                        HStack(spacing: 12) {
+                            Image("HuskLogo")
+                                .resizable()
+                                .interpolation(.high)
+                                .aspectRatio(contentMode: .fit)
+                                .frame(width: 40, height: 40)
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text("About Husk")
+                                    .font(.headline)
+                                    .foregroundStyle(Color.huskText)
+                                Text("Version \(Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "0.1.0")")
+                                    .font(.system(size: 12, design: .monospaced))
+                                    .foregroundStyle(Color.huskTextSecondary)
+                            }
+                        }
                         Text("Peel the husk — transparent cleaning for developers. AI agents, node_modules, DerivedData, and more.")
                             .font(.caption)
                             .foregroundStyle(Color.huskTextMuted)
