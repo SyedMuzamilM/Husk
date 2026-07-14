@@ -10,6 +10,7 @@ struct ContentView: View {
     @State private var cleanModel = CleanViewModel()
     @State private var analyzeModel = AnalyzeViewModel()
     @State private var appsModel = AppsViewModel()
+    @State private var statusModel = StatusViewModel()
     @State private var permissions = PermissionService()
     @State private var freeSpaceText = "—"
 
@@ -25,6 +26,8 @@ struct ContentView: View {
                     AnalyzeView(model: analyzeModel)
                 case .apps:
                     AppsView(model: appsModel)
+                case .status:
+                    StatusView(model: statusModel)
                 case .optimize:
                     OptimizeView()
                 case .settings:
@@ -36,14 +39,17 @@ struct ContentView: View {
         }
         .environment(permissions)
         .task {
-            // After first frame only — never block process launch / Previews.
             refreshFreeSpace()
             permissions.refresh()
         }
         .onChange(of: section) { _, newSection in
             refreshFreeSpace()
+            // Status sampling is started/stopped by StatusView appear/disappear.
             if newSection == .settings {
                 permissions.refresh()
+            }
+            if newSection != .status {
+                statusModel.stop()
             }
         }
     }

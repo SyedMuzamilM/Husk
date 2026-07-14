@@ -11,20 +11,21 @@
 
 | Module | Status |
 |---|---|
-| **Clean** | Scan user caches, browsers, logs, Xcode, Homebrew/npm/pip, Ollama/LM Studio, Trash size. Safety labels. Multi-select. Move to Trash only. |
-| **Analyze** | Squarified treemap of Home / Applications / Library. Drill-down, reveal, trash. |
-| **Apps** | List apps, leftover discovery by bundle ID, uninstall to Trash. |
+| **Clean** | Scan caches + developer/AI targets. Safety labels. Multi-select. Trash only. **Detail inspector** with content breakdown. |
+| **Analyze** | Squarified treemap (Library-first). Drill-down, reveal, trash. |
+| **Apps** | List apps, leftover discovery, uninstall to Trash. |
+| **Status** | Live CPU / memory / disk / thermal + process table, Quit / Force Quit. Samples only while visible. |
 | **Optimize** | Quick Look rebuild; honest “no RAM placebo”; DNS guidance. |
 | **Settings** | Full Disk Access check + open System Settings; safety promises. |
 
-### Explicitly not in 0.1
+### Explicitly not in 0.1.x yet
 
 - Premium licensing / paywall  
 - MCP server  
 - Port monitor  
-- SQLite metric history / Status tab  
+- SQLite metric history (long-range graphs)  
 - Menu bar HUD  
-- Rust scan engine (Swift concurrent sizer for now)  
+- Rust scan engine (Swift + `du` for now)  
 
 ---
 

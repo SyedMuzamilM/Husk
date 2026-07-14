@@ -128,6 +128,9 @@ actor CleanScanner {
             }
             guard classification.0 != .protected else { return nil }
 
+            // Cheap top-level inventory for the detail pane (not a full recursive count).
+            let entryCount = try? FileManager.default.contentsOfDirectory(atPath: target.path).count
+
             return CleanItem(
                 name: target.name,
                 path: target.path,
@@ -136,7 +139,8 @@ actor CleanScanner {
                 byteCount: sized.bytes,
                 safety: classification.0,
                 reason: classification.1,
-                modified: sized.modified
+                modified: sized.modified,
+                entryCount: entryCount
             )
         } catch is CancellationError {
             throw CancellationError()

@@ -97,12 +97,12 @@ struct CleanView: View {
     private var subtitle: String {
         switch model.phase {
         case .idle:
-            return "Scan regenerable caches and developer leftovers. Nothing is deleted until you choose it."
+            return "Scan regenerable caches and developer leftovers. Click an item for a detailed breakdown."
         case .scanning(let p):
             return "Scanning… \(Int(p.fraction * 100))% · \(p.itemsFound) found · \(ByteFormat.string(for: p.bytesFound)) · \(p.currentPath)"
         case .ready:
             if let r = model.lastResult {
-                return "Found \(ByteFormat.string(for: r.totalBytes)) across \(r.allItems.count) items in \(String(format: "%.1f", r.duration))s"
+                return "Found \(ByteFormat.string(for: r.totalBytes)) across \(r.allItems.count) items in \(String(format: "%.1f", r.duration))s — select a row for details"
             }
             return "Review items, then move selected to Trash."
         case .trashing:
@@ -121,7 +121,7 @@ struct CleanView: View {
             EmptyStateView(
                 systemImage: "leaf",
                 title: "Ready to scan",
-                message: "Husk looks for regenerable caches, logs, Xcode data, package manager caches, and local AI models. Every path is shown before delete.",
+                message: "Husk looks for regenerable caches, logs, Xcode data, package manager caches, and local AI models. Every path is shown before delete — click any result for a full content breakdown.",
                 actionTitle: "Scan Now"
             ) {
                 model.startScan()
@@ -172,7 +172,42 @@ struct CleanView: View {
                     model.startScan()
                 }
             } else {
-                resultsList
+                resultsSplit
+            }
+        }
+    }
+
+    private var resultsSplit: some View {
+        HSplitView {
+            resultsList
+                .frame(minWidth: 420)
+
+            if let item = model.inspectedItem {
+                CacheDetailPanel(
+                    item: item,
+                    report: model.cacheDetail,
+                    isLoading: model.isLoadingDetail,
+                    onReveal: { path in
+                        NSWorkspace.shared.activateFileViewerSelecting([URL(fileURLWithPath: path)])
+                    },
+                    onToggleSelect: { model.toggle(item) },
+                    isSelected: model.selectedIDs.contains(item.id)
+                )
+            } else {
+                VStack(spacing: 10) {
+                    Image(systemName: "sidebar.trailing")
+                        .font(.system(size: 36, weight: .light))
+                        .foregroundStyle(.secondary)
+                    Text("Select a cache for details")
+                        .font(.headline)
+                    Text("See size, safety, path, and the largest folders or files inside.")
+                        .font(.callout)
+                        .foregroundStyle(.secondary)
+                        .multilineTextAlignment(.center)
+                        .frame(maxWidth: 240)
+                }
+                .frame(minWidth: 280, idealWidth: 320, maxWidth: 380, maxHeight: .infinity)
+                .background(Color(nsColor: .controlBackgroundColor).opacity(0.35))
             }
         }
     }
@@ -202,18 +237,29 @@ struct CleanView: View {
 
             Divider()
 
-            List {
+            List(selection: Binding(
+                get: { model.inspectedItem?.id },
+                set: { id in
+                    if let id,
+                       let item = model.categories.flatMap(\.items).first(where: { $0.id == id }) {
+                        model.inspect(item)
+                    }
+                }
+            )) {
                 ForEach(model.filteredCategories) { category in
                     Section {
                         ForEach(category.items) { item in
                             CleanItemRow(
                                 item: item,
                                 isSelected: model.selectedIDs.contains(item.id),
+                                isInspected: model.inspectedItem?.id == item.id,
                                 onToggle: { model.toggle(item) },
+                                onInspect: { model.inspect(item) },
                                 onReveal: {
                                     NSWorkspace.shared.activateFileViewerSelecting([item.url])
                                 }
                             )
+                            .tag(item.id)
                         }
                     } header: {
                         HStack {
@@ -272,7 +318,9 @@ struct CleanView: View {
 struct CleanItemRow: View {
     let item: CleanItem
     let isSelected: Bool
+    var isInspected: Bool = false
     let onToggle: () -> Void
+    var onInspect: (() -> Void)? = nil
     let onReveal: () -> Void
 
     var body: some View {
@@ -292,15 +340,30 @@ struct CleanItemRow: View {
                         .font(.body.weight(.medium))
                         .lineLimit(1)
                     SafetyBadge(label: item.safety)
+                    if isInspected {
+                        Text("Details")
+                            .font(.caption2.weight(.semibold))
+                            .padding(.horizontal, 6)
+                            .padding(.vertical, 2)
+                            .background(Color.accentColor.opacity(0.15), in: Capsule())
+                    }
                 }
                 Text(item.path)
                     .font(.caption.monospaced())
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
                     .truncationMode(.middle)
-                Text(item.reason)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+                HStack(spacing: 8) {
+                    Text(item.reason)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                    if let count = item.entryCount {
+                        Text("· \(count) entries")
+                            .font(.caption)
+                            .foregroundStyle(.tertiary)
+                    }
+                }
             }
 
             Spacer(minLength: 8)
@@ -314,11 +377,14 @@ struct CleanItemRow: View {
         }
         .padding(.vertical, 4)
         .contentShape(Rectangle())
-        .onTapGesture(perform: onToggle)
+        .onTapGesture {
+            onInspect?()
+        }
         .contextMenu {
+            Button("Show details") { onInspect?() }
             Button("Reveal in Finder", action: onReveal)
             if item.safety.isSelectable {
-                Button(isSelected ? "Deselect" : "Select", action: onToggle)
+                Button(isSelected ? "Deselect" : "Select for Trash", action: onToggle)
             }
             Button("Copy Path") {
                 NSPasteboard.general.clearContents()

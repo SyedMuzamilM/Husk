@@ -15,8 +15,15 @@ final class CleanViewModel {
     var searchText: String = ""
     var expandedCategories: Set<String> = []
 
+    /// Focused item for the detail inspector.
+    var inspectedItem: CleanItem?
+    var cacheDetail: CacheDetailReport?
+    var isLoadingDetail = false
+
     private var scanTask: Task<Void, Never>?
+    private var detailTask: Task<Void, Never>?
     private let scanner = CleanScanner()
+    private let detailService = CacheDetailService()
 
     var filteredCategories: [CleanCategory] {
         let q = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -136,6 +143,29 @@ final class CleanViewModel {
 
     func clearSelection() {
         selectedIDs = []
+    }
+
+    func inspect(_ item: CleanItem) {
+        inspectedItem = item
+        cacheDetail = nil
+        detailTask?.cancel()
+        detailTask = Task {
+            isLoadingDetail = true
+            defer { isLoadingDetail = false }
+            let report = await detailService.detail(for: item.path)
+            guard !Task.isCancelled else { return }
+            // Only apply if still inspecting the same item
+            if inspectedItem?.id == item.id {
+                cacheDetail = report
+            }
+        }
+    }
+
+    func clearInspection() {
+        detailTask?.cancel()
+        inspectedItem = nil
+        cacheDetail = nil
+        isLoadingDetail = false
     }
 
     func moveSelectionToTrash() async {

@@ -15,6 +15,8 @@ struct CleanItem: Identifiable, Hashable, Sendable {
     let safety: SafetyLabel
     let reason: String
     let modified: Date?
+    /// Immediate child count (cheap directory listing at scan time).
+    let entryCount: Int?
 
     init(
         id: UUID = UUID(),
@@ -25,7 +27,8 @@ struct CleanItem: Identifiable, Hashable, Sendable {
         byteCount: Int64,
         safety: SafetyLabel,
         reason: String,
-        modified: Date? = nil
+        modified: Date? = nil,
+        entryCount: Int? = nil
     ) {
         self.id = id
         self.name = name
@@ -36,6 +39,7 @@ struct CleanItem: Identifiable, Hashable, Sendable {
         self.safety = safety
         self.reason = reason
         self.modified = modified
+        self.entryCount = entryCount
     }
 
     var url: URL { URL(fileURLWithPath: path) }

@@ -9,6 +9,7 @@ enum AppSection: String, CaseIterable, Identifiable, Hashable {
     case clean
     case analyze
     case apps
+    case status
     case optimize
     case settings
 
@@ -19,6 +20,7 @@ enum AppSection: String, CaseIterable, Identifiable, Hashable {
         case .clean: "Clean"
         case .analyze: "Analyze"
         case .apps: "Apps"
+        case .status: "Status"
         case .optimize: "Optimize"
         case .settings: "Settings"
         }
@@ -29,6 +31,7 @@ enum AppSection: String, CaseIterable, Identifiable, Hashable {
         case .clean: "leaf.fill"
         case .analyze: "square.grid.3x3.topleft.filled"
         case .apps: "square.stack.3d.up.fill"
+        case .status: "waveform.path.ecg"
         case .optimize: "wrench.and.screwdriver.fill"
         case .settings: "gearshape.fill"
         }
