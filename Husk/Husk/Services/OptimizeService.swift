@@ -10,7 +10,7 @@ enum OptimizeService {
         OptimizeTask(
             id: "quicklook",
             title: "Rebuild Quick Look cache",
-            detail: "Runs qlmanage -r to refresh file previews.",
+            detail: "Resets generated file previews with qlmanage -r cache. Use this when previews are stale.",
             systemImage: "eye",
             needsAdmin: false
         )
@@ -19,7 +19,7 @@ enum OptimizeService {
     static func run(_ task: OptimizeTask) async -> (success: Bool, message: String) {
         switch task.id {
         case "quicklook":
-            return await runProcess("/usr/bin/qlmanage", args: ["-r"])
+            return await runProcess("/usr/bin/qlmanage", args: ["-r", "cache"])
         default:
             return (false, "Unknown task")
         }

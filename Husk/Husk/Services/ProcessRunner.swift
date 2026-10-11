@@ -14,11 +14,12 @@ struct CommandResult: Sendable {
 /// A dedicated worker owns launch, cancellation, termination, and reaping.
 enum ProcessRunner {
     static func run(_ executable: String, arguments: [String], timeout: TimeInterval = 5,
-                    outputLimit: Int = 4 * 1024 * 1024) async throws -> CommandResult {
+                    outputLimit: Int = 4 * 1024 * 1024, environment: [String: String]? = nil) async throws -> CommandResult {
         try await BlockingIO.run { flag in
             let process = Process()
             process.executableURL = URL(fileURLWithPath: executable)
             process.arguments = arguments
+            if let environment { process.environment = environment }
             let stdout = Pipe(), stderr = Pipe()
             process.standardOutput = stdout
             process.standardError = stderr

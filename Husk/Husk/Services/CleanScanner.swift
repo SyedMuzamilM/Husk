@@ -166,6 +166,7 @@ actor CleanScanner {
     }
 
     static func ownerBundleID(for path: String) -> String? {
+        if let rule = AIStorageCatalog.cacheRule(for: path) { return rule.ownerBundleID }
         let name = URL(fileURLWithPath: path).lastPathComponent
         if name.hasPrefix("com.") || name.hasPrefix("org.") { return name }
         let owners = ["Chrome": "com.google.Chrome", "Firefox": "org.mozilla.firefox", "Cursor": "com.todesktop.230313mzl4w4u92",
@@ -393,46 +394,12 @@ actor CleanScanner {
             (home as NSString).appendingPathComponent(".cache/pip"),
             safety: .safe, reason: "Python pip download cache")
 
-        // AI coding agents (caches and version folders - preserve workspace sessions)
         let support = (lib as NSString).appendingPathComponent("Application Support")
-        add("ai-agents", "AI Agents", "cpu", "Claude Code app cache",
-            (support as NSString).appendingPathComponent("Claude/Cache"),
-            safety: .review, reason: "Claude Desktop web/app cache — sessions preserved elsewhere")
-        add("ai-agents", "AI Agents", "cpu", "Claude Code GPU cache",
-            (support as NSString).appendingPathComponent("Claude/GPUCache"),
-            safety: .safe, reason: "Claude Desktop GPU cache")
-        add("ai-agents", "AI Agents", "cpu", "Claude Code Code Cache",
-            (support as NSString).appendingPathComponent("Claude/Code Cache"),
-            safety: .safe, reason: "Claude Desktop Chromium code cache")
-        add("ai-agents", "AI Agents", "cpu", "Cursor Cache",
-            (support as NSString).appendingPathComponent("Cursor/Cache"),
-            safety: .safe, reason: "Cursor editor Chromium cache")
-        add("ai-agents", "AI Agents", "cpu", "Cursor CachedData",
-            (support as NSString).appendingPathComponent("Cursor/CachedData"),
-            safety: .safe, reason: "Cursor V8 cached data")
-        add("ai-agents", "AI Agents", "cpu", "Cursor GPUCache",
-            (support as NSString).appendingPathComponent("Cursor/GPUCache"),
-            safety: .safe, reason: "Cursor GPU cache")
-        add("ai-agents", "AI Agents", "cpu", "Cursor logs",
-            (support as NSString).appendingPathComponent("Cursor/logs"),
-            safety: .review, reason: "Cursor application logs")
-
-        add("ai-agents", "AI Agents", "cpu", "Codex CLI temp",
-            (home as NSString).appendingPathComponent(".codex/.tmp"),
-            safety: .review, reason: "Unverified Codex temporary files. Review for active sessions before removal.")
-        add("ai-agents", "AI Agents", "cpu", "Codex CLI logs",
-            (home as NSString).appendingPathComponent(".codex/log"),
-            safety: .review, reason: "Codex log files")
-
-        add("ai-agents", "AI Agents", "cpu", "Antigravity browser cache",
-            (home as NSString).appendingPathComponent(".gemini/antigravity-browser-profile/Default/Cache"),
-            safety: .safe, reason: "Gemini Antigravity browser cache")
-        add("ai-agents", "AI Agents", "cpu", "Continue.dev cache",
-            (home as NSString).appendingPathComponent(".continue/index"),
-            safety: .review, reason: "Continue.dev index/cache")
-
-
-
+        // Shared explicit AI rules; sessions, models, versions and worktrees never become cache targets.
+        for rule in AIStorageCatalog.rules where rule.removable {
+            add("ai-agents", "AI Caches", "cpu", rule.tool + " · " + (rule.relativePath as NSString).lastPathComponent,
+                rule.path(home: home), safety: .review, reason: rule.detail)
+        }
 
         add("ai-agents", "AI Agents", "cpu", "Ollama App Cache",
             (home as NSString).appendingPathComponent("Library/Caches/com.electron.ollama"),

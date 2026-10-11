@@ -21,6 +21,7 @@ for index in range(count): (root / str(index)).touch()
 PY
 src="$repo_root/Husk/Husk"
 swiftc -O -swift-version 6 -parse-as-library \
+  "$src/Models/AIStorage.swift" "$src/Services/AIStorageCatalog.swift" \
   "$src/Models/FileIdentity.swift" "$src/Models/RemovalPlan.swift" \
   "$src/Models/SafetyLabel.swift" "$src/Models/SizeMeasurement.swift" \
   "$src/Services/PathSafety.swift" "$src/Services/ScanPreferences.swift" \

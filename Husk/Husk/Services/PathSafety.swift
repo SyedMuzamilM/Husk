@@ -46,6 +46,8 @@ enum PathSafety: Sendable {
             return true
         }
 
+        if isProtectedAIStorage(standardized) { return true }
+
         for prefix in absoluteDenyPrefixes {
             if overlaps(standardized, prefix) {
                 return true
@@ -80,6 +82,24 @@ enum PathSafety: Sendable {
                           home + "/Library/Application Support", home + "/Library/Preferences"]
         if broadRoots.contains(where: { canonicalPath($0).lowercased() == standardized.lowercased() }) { return true }
 
+        return false
+    }
+
+    /// AI state cannot become an arbitrary Analyze/App removal candidate.
+    /// Only fixed cache leaves in the catalog are eligible inside these containers.
+    static func isProtectedAIStorage(_ path: String, home: String = NSHomeDirectory()) -> Bool {
+        let normalized = canonicalPath(path)
+        let containers = [".codex", ".claude", ".gemini", ".local/share/opencode", ".config/opencode",
+                          "Library/Application Support/Codex", "Library/Application Support/Claude",
+                          "Library/Application Support/Cursor", "Library/Application Support/Antigravity",
+                          "Library/Caches/Codex"]
+        let dataRoots = AIStorageCatalog.rules.filter { !$0.removable }.map { $0.relativePath }
+        for suffix in containers + dataRoots {
+            let root = canonicalPath((home as NSString).appendingPathComponent(suffix))
+            if normalized.lowercased() == root.lowercased() || isDescendant(normalized, of: root) || isDescendant(root, of: normalized) {
+                if AIStorageCatalog.cacheRule(for: normalized, home: home) == nil { return true }
+            }
+        }
         return false
     }
 
@@ -138,7 +158,7 @@ enum PathSafety: Sendable {
         return false
     }
 
-    private static let readDenyPaths = (absoluteDenyPrefixes + (homeDenySuffixes + [".aws", ".azure", ".kube", ".codex/auth.json", ".claude", "Library/CloudStorage", "Library/Mobile Documents"]).map { NSHomeDirectory() + "/" + $0 }).map { canonicalPath($0).lowercased() }
+    private static let readDenyPaths = (absoluteDenyPrefixes + (homeDenySuffixes + [".aws", ".azure", ".kube", ".codex/auth.json", ".claude", ".local/share/opencode", "Library/Application Support/Codex", "Library/CloudStorage", "Library/Mobile Documents"]).map { NSHomeDirectory() + "/" + $0 }).map { canonicalPath($0).lowercased() }
 
     static func isSensitiveForReading(_ path: String) -> Bool {
         let normalized = path.lowercased()
