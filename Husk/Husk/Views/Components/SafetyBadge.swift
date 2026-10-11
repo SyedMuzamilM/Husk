@@ -9,9 +9,8 @@ struct SafetyBadge: View {
     let label: SafetyLabel
 
     var body: some View {
-        Text(label.title.uppercased())
-            .font(.system(size: 9, weight: .bold))
-            .tracking(0.6)
+        Text(label.title)
+            .font(.callout.weight(.medium))
             .padding(.horizontal, 7)
             .padding(.vertical, 3)
             .foregroundStyle(label.color)
@@ -27,7 +26,7 @@ struct SizeText: View {
     var body: some View {
         Text(ByteFormat.string(for: bytes))
             .font(monospaced ? .body.monospacedDigit().weight(.medium) : .body.weight(.medium))
-            .foregroundStyle(Color.huskPrimary)
+            .foregroundStyle(Color.huskAccentText)
     }
 }
 
@@ -39,25 +38,12 @@ struct EmptyStateView: View {
     var action: (() -> Void)?
 
     var body: some View {
-        VStack(spacing: 16) {
-            Image(systemName: systemImage)
-                .font(.system(size: 40, weight: .light))
-                .foregroundStyle(Color.huskPrimary.opacity(0.85))
-            VStack(spacing: 6) {
-                Text(title)
-                    .font(.title2.weight(.semibold))
-                    .foregroundStyle(Color.huskText)
-                Text(message)
-                    .font(.body)
-                    .foregroundStyle(Color.huskTextMuted)
-                    .multilineTextAlignment(.center)
-                    .frame(maxWidth: 400)
-            }
-            if let actionTitle, let action {
-                HuskPillButton(title: actionTitle, action: action)
-            }
+        ContentUnavailableView {
+            Label(title, systemImage: systemImage)
+        } description: {
+            Text(message)
+        } actions: {
+            if let actionTitle, let action { HuskPillButton(title: actionTitle, action: action) }
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .padding(32)
     }
 }

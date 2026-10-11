@@ -2,21 +2,21 @@
 //  HuskTheme.swift
 //  Husk
 //
-//  Design tokens from stitch_husk_macos_interface_design (quiet confidence).
+//  Original Husk palette, rounded panels and warm amber controls.
 //
 
 import SwiftUI
 
 enum HuskTheme {
     static let railWidth: CGFloat = 64
-    static let minWindowWidth: CGFloat = 1000
-    static let minWindowHeight: CGFloat = 680
+    static let minWindowWidth: CGFloat = 960
+    static let minWindowHeight: CGFloat = 640
     static let cardRadius: CGFloat = 20
     static let pillRadius: CGFloat = 999
     static let contentPadding: CGFloat = 24
 }
 
-// MARK: - Palette (stitch DESIGN.md)
+// MARK: - Adaptive palette
 
 extension Color {
     static let huskBg = adaptive(dark: 0.075, light: 0.97)
@@ -29,8 +29,16 @@ extension Color {
     static let huskText = Color.primary
     static let huskTextSecondary = Color.secondary
     static let huskTextMuted = Color.secondary
-    static let huskTeal = Color(red: 0.467, green: 0.839, blue: 0.824)        // #77d6d2
+    static let huskTeal = contrasting(dark: (0.467, 0.839, 0.824), light: (0.12, 0.44, 0.43))        // #77d6d2
+    static let huskAccentText = contrasting(dark: (0.91, 0.64, 0.36), light: (0.50, 0.30, 0.10))
     static let huskBorder = Color.primary.opacity(0.12)
+
+    private static func contrasting(dark: (CGFloat, CGFloat, CGFloat), light: (CGFloat, CGFloat, CGFloat)) -> Color {
+        Color(nsColor: NSColor(name: nil) { appearance in
+            let rgb = appearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua ? dark : light
+            return NSColor(red: rgb.0, green: rgb.1, blue: rgb.2, alpha: 1)
+        })
+    }
 
     private static func adaptive(dark: CGFloat, light: CGFloat) -> Color {
         Color(nsColor: NSColor(name: nil) { appearance in
@@ -39,9 +47,9 @@ extension Color {
         })
     }
 
-    static let safeLabel = Color(red: 0.35, green: 0.72, blue: 0.48)
-    static let reviewLabel = Color(red: 0.91, green: 0.64, blue: 0.36)
-    static let cautionLabel = Color(red: 0.95, green: 0.55, blue: 0.28)
+    static let safeLabel = contrasting(dark: (0.35, 0.72, 0.48), light: (0.16, 0.43, 0.25))
+    static let reviewLabel = contrasting(dark: (0.91, 0.64, 0.36), light: (0.50, 0.30, 0.10))
+    static let cautionLabel = contrasting(dark: (0.95, 0.55, 0.28), light: (0.66, 0.25, 0.08))
     static let protectedLabel = Color.secondary
 
     static let treemapPalette: [Color] = [
@@ -71,16 +79,10 @@ struct HuskBackground: View {
     var body: some View {
         ZStack {
             Color.huskBg
-            RadialGradient(
-                colors: [glow, .clear],
-                center: .center,
-                startRadius: 40,
-                endRadius: 420
-            )
-            .blur(radius: 8)
-        }
-        .ignoresSafeArea()
+            RadialGradient(colors: [glow, .clear], center: .center, startRadius: 30, endRadius: 440)
+        }.ignoresSafeArea()
     }
+
 }
 
 struct HuskCard<Content: View>: View {
@@ -108,23 +110,31 @@ struct HuskPillButton: View {
     var action: () -> Void
 
     var body: some View {
+        button.buttonStyle(HuskPillStyle(prominent: prominent))
+    }
+
+    private var button: some View {
         Button(action: action) {
             HStack(spacing: 8) {
-                if let systemImage {
-                    Image(systemName: systemImage)
-                }
+                if let systemImage { Image(systemName: systemImage) }
                 Text(title)
-                    .fontWeight(.semibold)
-            }
-            .padding(.horizontal, 28)
-            .padding(.vertical, 12)
-            .background(
-                Capsule(style: .continuous)
-                    .fill(prominent ? Color.huskPrimary : Color.huskSurfaceHigh)
-            )
-            .foregroundStyle(prominent ? Color.huskOnPrimary : Color.huskText)
+            }.font(.body.weight(.semibold))
         }
-        .buttonStyle(.plain)
+    }
+
+}
+
+private struct HuskPillStyle: ButtonStyle {
+    let prominent: Bool
+    @Environment(\.isEnabled) private var isEnabled
+
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .padding(.horizontal, 24).padding(.vertical, 12)
+            .foregroundStyle(prominent ? Color.huskOnPrimary : Color.huskText)
+            .background(prominent ? Color.huskPrimary : Color.huskSurfaceHigh, in: Capsule())
+            .overlay(Capsule().strokeBorder(Color.huskBorder.opacity(0.5)))
+            .opacity(isEnabled ? (configuration.isPressed ? 0.8 : 1) : 0.45)
     }
 }
 
@@ -135,11 +145,11 @@ struct HuskSectionHeader: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
             Text(title)
-                .font(.system(size: 22, weight: .semibold))
+                .font(.title2.weight(.semibold))
                 .foregroundStyle(Color.huskText)
             if let subtitle {
                 Text(subtitle)
-                    .font(.system(size: 13))
+                    .font(.body)
                     .foregroundStyle(Color.huskTextMuted)
             }
         }

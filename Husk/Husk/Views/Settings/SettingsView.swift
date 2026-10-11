@@ -4,7 +4,7 @@ import SwiftUI
 struct SettingsView: View {
     @Environment(PermissionService.self) private var permissions
     @AppStorage("husk.appearance") private var appearance = "system"
-    @AppStorage("husk.compactNavigation") private var compact = false
+    @AppStorage("husk.compactNavigation") private var compact = true
     @AppStorage("husk.keepOperationHistory") private var keepHistory = true
     @State private var exclusions: [String] = []
     @State private var roots: [String] = []
@@ -12,6 +12,13 @@ struct SettingsView: View {
     @State private var error: String?
 
     var body: some View {
+        VStack(spacing: 0) {
+            HuskPageHeader(title: "Settings", subtitle: "Choose appearance, scan boundaries and local history.") { EmptyView() }
+            settingsForm
+        }
+    }
+
+    private var settingsForm: some View {
         Form {
             Section("Appearance") {
                 Picker("Theme", selection: $appearance) {
@@ -34,7 +41,7 @@ struct SettingsView: View {
                 Text("Excluded folders and their contents are skipped. Removing a parent of an excluded path is also blocked.").font(.callout)
                 ForEach(exclusions, id: \.self) { path in
                     HStack {
-                        Text(path).font(.caption.monospaced()).textSelection(.enabled)
+                        Text(path).font(.callout.monospaced()).textSelection(.enabled)
                         Spacer()
                         Button("Remove") { exclusions.removeAll { $0 == path }; savePaths() }
                     }
@@ -45,7 +52,7 @@ struct SettingsView: View {
                 Text("Opt-in discovery of recognized project caches. Project removal remains disabled until Git tracking and running builds can be verified.").font(.callout)
                 ForEach(roots, id: \.self) { path in
                     HStack {
-                        Text(path).font(.caption.monospaced()).textSelection(.enabled)
+                        Text(path).font(.callout.monospaced()).textSelection(.enabled)
                         Spacer()
                         Button("Remove") { roots.removeAll { $0 == path }; savePaths() }
                     }
@@ -64,7 +71,7 @@ struct SettingsView: View {
                 ForEach(records) { record in
                     DisclosureGroup(record.title + " · " + record.date.formatted()) {
                         ForEach(record.destinations) { item in
-                            Text(item.originalPath + "\nTrash: " + item.trashPath).font(.caption.monospaced()).textSelection(.enabled)
+                            Text(item.originalPath + "\nTrash: " + item.trashPath).font(.callout.monospaced()).textSelection(.enabled)
                         }
                         ForEach(record.issues) { Text($0.path + "\n" + $0.message).font(.caption).textSelection(.enabled) }
                     }
@@ -74,11 +81,13 @@ struct SettingsView: View {
                 Text("Native macOS storage review, app removal, and system monitoring. Experimental beta; allocated sizes are estimates, including shared APFS data.")
                 Button("Replay welcome") { UserDefaults.standard.set(false, forKey: "husk.hasCompletedOnboarding") }
             }
-            if let error { Text(error).foregroundStyle(.orange).textSelection(.enabled) }
+            if let error { HuskNotice(message: error, systemImage: "exclamationmark.triangle") }
         }
         .formStyle(.grouped)
+        .scrollContentBackground(.hidden)
         .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in permissions.refresh() }
         .task {
+            guard !AppRuntime.isXcodePreview && !AppRuntime.isUIFixture else { return }
             permissions.refresh()
             exclusions = ScanPreferences.excludedPaths
             roots = ScanPreferences.projectRoots
@@ -87,7 +96,7 @@ struct SettingsView: View {
     }
 
     private func loadHistory() async {
-        do { records = try await OperationJournal.shared.records() }
+        do { records = try await OperationJournal.shared.records(); error = nil }
         catch { self.error = error.localizedDescription }
     }
     private func savePaths() {

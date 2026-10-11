@@ -6,6 +6,9 @@
 import Foundation
 
 enum AppRuntime {
+    /// Fixture renderer disables live scans, sampling and local history reads.
+    static var isUIFixture: Bool { ProcessInfo.processInfo.environment["HUSK_UI_SMOKE"] == "1" }
+
     /// True when running under Xcode Previews / Playgrounds.
     static var isXcodePreview: Bool {
         let env = ProcessInfo.processInfo.environment

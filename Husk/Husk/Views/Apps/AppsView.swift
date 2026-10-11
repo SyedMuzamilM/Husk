@@ -1,230 +1,94 @@
-//
-//  AppsView.swift
-//  Husk
-//
-
 import SwiftUI
 
 struct AppsView: View {
     @Bindable var model: AppsViewModel
-
     var body: some View {
         VStack(spacing: 0) {
-            HStack {
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("Apps")
-                        .font(.system(size: 20, weight: .semibold))
-                        .foregroundStyle(Color.huskText)
-                    Text("Uninstall apps and peel leftover files.")
-                        .font(.system(size: 12))
-                        .foregroundStyle(Color.huskTextMuted)
-                }
-                Spacer()
-                Button {
-                    model.loadApps()
-                } label: {
-                    Image(systemName: "arrow.clockwise")
-                        .foregroundStyle(Color.huskTextSecondary)
-                }
-                .buttonStyle(.plain)
-                .disabled(model.isLoadingApps)
+            HuskPageHeader(title: "Applications", subtitle: "Review an app and its exact bundle ID matches before removal.") {
+                Button("Refresh", systemImage: "arrow.clockwise") { model.loadApps() }.disabled(model.isLoadingApps || model.isUninstalling)
             }
-            .padding(.horizontal, HuskTheme.contentPadding)
-            .padding(.top, 18)
-            .padding(.bottom, 12)
-
-            HStack(spacing: 12) {
-                appList
-                    .frame(minWidth: 280, idealWidth: 320)
-                detail
-                    .frame(maxWidth: .infinity)
-            }
-            .padding(.horizontal, HuskTheme.contentPadding)
-            .padding(.bottom, 16)
+            HSplitView {
+                appList.frame(minWidth: 240, idealWidth: 270)
+                detail.frame(minWidth: 380, maxWidth: .infinity)
+            }.padding(.horizontal, HuskTheme.contentPadding).padding(.bottom, HuskTheme.contentPadding)
         }
-        .onAppear {
-            if model.apps.isEmpty { model.loadApps() }
-        }
+        .onAppear { if model.apps.isEmpty && !AppRuntime.isXcodePreview && !AppRuntime.isUIFixture { model.loadApps() } }
         .sheet(item: $model.removalPlan) { plan in
             RemovalReviewSheet(plan: plan) { frozen in Task { await model.uninstallSelected(frozen) } }
         }
         .sheet(item: $model.removalResult) { RemovalResultSheet(result: $0) }
-
     }
-
     private var appList: some View {
-        VStack(spacing: 0) {
-            HStack {
-                Image(systemName: "magnifyingglass").foregroundStyle(Color.huskTextMuted)
-                TextField("Search apps", text: $model.searchText)
-                    .textFieldStyle(.plain)
-                    .foregroundStyle(Color.huskText)
-            }
-            .padding(10)
-            Divider().overlay(Color.huskBorder)
-
-            if model.isLoadingApps {
-                ProgressView().tint(Color.huskPrimary).frame(maxHeight: .infinity)
-            } else {
-                List(model.filteredApps, selection: Binding(
-                    get: { model.selectedApp?.id },
-                    set: { id in
-                        if let id, let app = model.apps.first(where: { $0.id == id }) {
-                            model.select(app)
-                        }
-                    }
-                )) { app in
+        VStack(spacing: 12) {
+            HuskSearchField(prompt: "Search apps or bundle IDs", text: $model.searchText).padding(.horizontal, 10)
+            if model.isLoadingApps { ProgressView("Finding applications…").frame(maxHeight: .infinity) }
+            else {
+                List(model.filteredApps, selection: Binding(get: { model.selectedApp?.id }, set: { id in
+                    if let app = model.apps.first(where: { $0.id == id }), model.selectedApp?.id != id { model.select(app) }
+                })) { app in
                     HStack(spacing: 10) {
-                        Image(nsImage: app.icon)
-                            .resizable()
-                            .frame(width: 28, height: 28)
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text(app.name)
-                                .foregroundStyle(Color.huskText)
-                                .lineLimit(1)
-                            Text(app.bundleIdentifier ?? "—")
-                                .font(.system(size: 10, design: .monospaced))
-                                .foregroundStyle(Color.huskTextMuted)
-                                .lineLimit(1)
+                        Image(nsImage: app.icon).resizable().frame(width: 32, height: 32).accessibilityHidden(true)
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text(app.name).font(.body.weight(.medium)).lineLimit(1)
+                            Text(app.version ?? "Unknown version").font(.callout).foregroundStyle(.secondary)
+                        }
+                    }.padding(.vertical, 4).tag(app.id)
+                }.listStyle(.inset).scrollContentBackground(.hidden).overlay {
+                    if model.filteredApps.isEmpty { ContentUnavailableView("No matching apps", systemImage: "square.stack.3d.up", description: Text("Change the search or refresh the app list.")) }
+                }
+            }
+        }.padding(.top, 10).background(Color.huskSurface, in: .rect(cornerRadius: HuskTheme.cardRadius))
+    }
+    @ViewBuilder private var detail: some View {
+        if let app = model.selectedApp {
+            VStack(spacing: 0) {
+                VStack(alignment: .leading, spacing: 14) {
+                    HStack(spacing: 12) {
+                        Image(nsImage: app.icon).resizable().frame(width: 44, height: 44).accessibilityHidden(true)
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text(app.name).font(.title3.weight(.semibold))
+                            Text(app.bundleIdentifier ?? "Bundle ID unavailable").font(.callout.monospaced()).textSelection(.enabled)
                         }
                         Spacer()
-                        if app.byteCount > 0 {
-                            Text(ByteFormat.string(for: app.byteCount))
-                                .font(.system(size: 11, design: .monospaced))
-                                .foregroundStyle(Color.huskPrimary)
-                        }
+                        Text(ByteFormat.string(for: app.byteCount)).monospacedDigit()
                     }
-                    .tag(app.id)
-                    .listRowBackground(Color.clear)
-                    .onTapGesture { model.select(app) }
-                }
-                .listStyle(.plain)
-                .scrollContentBackground(.hidden)
-            }
-        }
-        .background(
-            RoundedRectangle(cornerRadius: HuskTheme.cardRadius, style: .continuous)
-                .fill(Color.huskSurface.opacity(0.9))
-                .overlay(
-                    RoundedRectangle(cornerRadius: HuskTheme.cardRadius, style: .continuous)
-                        .strokeBorder(Color.huskBorder)
-                )
-        )
-        .clipShape(RoundedRectangle(cornerRadius: HuskTheme.cardRadius, style: .continuous))
-    }
-
-    @ViewBuilder
-    private var detail: some View {
-        if let app = model.selectedApp {
-            VStack(alignment: .leading, spacing: 0) {
-                HStack(spacing: 12) {
-                    Image(nsImage: app.icon).resizable().frame(width: 48, height: 48)
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text(app.name)
-                            .font(.system(size: 16, weight: .semibold))
-                            .foregroundStyle(Color.huskText)
-                        Text(app.path + " · Size " + app.completeness.rawValue)
-                            .font(.system(size: 10, design: .monospaced))
-                            .foregroundStyle(Color.huskTextMuted)
-                            .lineLimit(1)
-                            .truncationMode(.middle)
-                    }
-                    Spacer()
-                    if app.byteCount > 0 {
-                        Text(ByteFormat.string(for: app.byteCount))
-                            .font(.system(size: 16, weight: .semibold, design: .monospaced))
-                            .foregroundStyle(Color.huskPrimary)
-                    }
-                }
-                .padding(16)
-
-                Toggle("Include app bundle", isOn: $model.includeAppBundle)
-                    .toggleStyle(.switch)
-                    .tint(Color.huskPrimary)
-                    .padding(.horizontal, 16)
-                    .padding(.bottom, 8)
-                    .foregroundStyle(Color.huskTextSecondary)
-
-                if model.isLoadingLeftovers {
-                    ProgressView("Finding leftovers…")
-                        .tint(Color.huskPrimary)
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
-                } else if model.leftovers.isEmpty {
-                    Text("No leftovers found.")
-                        .foregroundStyle(Color.huskTextMuted)
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
-                } else {
-                    List {
-                        ForEach(model.leftovers) { item in
-                            HStack {
-                                Button {
-                                    model.toggleLeftover(item)
-                                } label: {
-                                    Image(systemName: model.selectedLeftoverIDs.contains(item.id) ? "checkmark.circle.fill" : "circle")
-                                        .foregroundStyle(model.selectedLeftoverIDs.contains(item.id) ? Color.huskPrimary : Color.huskTextMuted)
-                                }
-                                .buttonStyle(.plain)
-                                .accessibilityLabel("Select " + item.name)
-                                VStack(alignment: .leading, spacing: 2) {
-                                    Text(item.name).foregroundStyle(Color.huskText)
-                                    Text(item.path)
-                                        .font(.system(size: 10, design: .monospaced))
-                                        .foregroundStyle(Color.huskTextMuted)
-                                        .lineLimit(1)
-                                        .truncationMode(.middle)
-                                    HStack {
-                                        Text(item.kind).font(.caption2).foregroundStyle(Color.huskTextMuted)
-                                        SafetyBadge(label: item.safety)
-                                    }
-                                }
-                                Spacer()
-                                Text(ByteFormat.string(for: item.byteCount))
-                                    .font(.system(size: 11, design: .monospaced))
-                                    .foregroundStyle(Color.huskPrimary)
+                    Text(app.path).font(.body.monospaced()).lineLimit(2).truncationMode(.middle).textSelection(.enabled)
+                    Toggle("Include application bundle", isOn: $model.includeAppBundle).disabled(app.isFromSystem || model.isUninstalling)
+                    if app.isFromSystem { HuskNotice(message: "macOS system applications are protected.", systemImage: "lock.shield") }
+                }.padding(18)
+                Divider()
+                if model.isLoadingLeftovers { ProgressView("Finding related files…").frame(maxWidth: .infinity, maxHeight: .infinity) }
+                else {
+                    List(model.leftovers) { item in
+                        HStack(alignment: .top, spacing: 12) {
+                            Toggle("Select " + item.name, isOn: Binding(get: { model.selectedLeftoverIDs.contains(item.id) }, set: { _ in model.toggleLeftover(item) }))
+                                .labelsHidden().disabled(!item.safety.isSelectable || model.isUninstalling)
+                            VStack(alignment: .leading, spacing: 6) {
+                                HStack { Text(item.name).font(.headline); Spacer(); Text(ByteFormat.string(for: item.byteCount)).monospacedDigit() }
+                                Text(item.path).font(.callout.monospaced()).textSelection(.enabled).lineLimit(2).truncationMode(.middle)
+                                HStack { SafetyBadge(label: item.safety); Text(item.kind).font(.callout).foregroundStyle(.secondary) }
                             }
-                            .listRowBackground(Color.clear)
-                        }
+                        }.padding(.vertical, 6)
+                    }.listStyle(.inset).scrollContentBackground(.hidden).overlay {
+                        if model.leftovers.isEmpty { ContentUnavailableView("No related files found", systemImage: "checkmark.shield", description: Text("Only exact bundle ID matches are included. Other copies may share app data.")) }
                     }
-                    .listStyle(.plain)
-                    .scrollContentBackground(.hidden)
                 }
-
-                if let status = model.statusMessage {
-                    Text(status).font(.caption).foregroundStyle(Color.huskTextSecondary).padding(.horizontal, 16)
-                }
-                if let error = model.errorMessage {
-                    Text(error).font(.caption).foregroundStyle(Color.cautionLabel).padding(.horizontal, 16)
-                }
-
-                Divider().overlay(Color.huskBorder)
-                HStack {
-                    Text("Selected estimate \(ByteFormat.string(for: model.reclaimableBytes))")
-                        .font(.system(size: 12, design: .monospaced))
-                        .foregroundStyle(Color.huskTextMuted)
+                if let status = model.statusMessage { HuskNotice(message: status).padding(.horizontal, 14) }
+                if let error = model.errorMessage { HuskNotice(message: error, systemImage: "exclamationmark.triangle").padding(.horizontal, 14) }
+                Divider()
+                HStack(spacing: 12) {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(ByteFormat.string(for: model.reclaimableBytes) + " selected").font(.headline)
+                        Text("Size \(app.completeness.rawValue)").font(.callout).foregroundStyle(.secondary)
+                    }
                     Spacer()
-                    HuskPillButton(title: "Move to Trash", systemImage: "trash") {
-                        Task { await model.prepareRemoval() }
-                    }
-                    .disabled(model.isUninstalling || model.isLoadingLeftovers || (model.selectedLeftovers.isEmpty && !model.includeAppBundle) || app.isFromSystem)
-                    .opacity(app.isFromSystem ? 0.4 : 1)
-                }
-                .padding(14)
-            }
-            .background(
-                RoundedRectangle(cornerRadius: HuskTheme.cardRadius, style: .continuous)
-                    .fill(Color.huskSurface.opacity(0.9))
-                    .overlay(
-                        RoundedRectangle(cornerRadius: HuskTheme.cardRadius, style: .continuous)
-                            .strokeBorder(Color.huskBorder)
-                    )
-            )
-            .clipShape(RoundedRectangle(cornerRadius: HuskTheme.cardRadius, style: .continuous))
+                    HuskPillButton(title: "Review removal", systemImage: "trash") { Task { await model.prepareRemoval() } }
+                        .disabled(model.isUninstalling || model.isLoadingLeftovers || (model.selectedLeftovers.isEmpty && !model.includeAppBundle) || app.isFromSystem)
+                }.padding(16)
+            }.background(Color.huskSurface, in: .rect(cornerRadius: HuskTheme.cardRadius))
         } else {
-            EmptyStateView(
-                systemImage: "shippingbox",
-                title: "Select an app",
-                message: "Husk finds leftovers by bundle ID, then moves them to Trash with your approval."
-            )
+            ContentUnavailableView("Select an application", systemImage: "square.stack.3d.up", description: Text("Inspect its size and related files. Preferences and personal data require a separate review."))
+                .background(Color.huskSurface, in: .rect(cornerRadius: HuskTheme.cardRadius))
         }
     }
 }

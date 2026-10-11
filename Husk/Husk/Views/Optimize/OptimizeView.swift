@@ -1,104 +1,52 @@
-//
-//  OptimizeView.swift
-//  Husk
-//
-
 import SwiftUI
 
 struct OptimizeView: View {
     @State private var runningID: String?
     @State private var lastMessage: String?
     @State private var lastSuccess: Bool?
-
+    @State private var pendingTask: OptimizeTask?
     var body: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            VStack(alignment: .leading, spacing: 4) {
-                Text("Maintenance")
-                    .font(.system(size: 20, weight: .semibold))
-                    .foregroundStyle(Color.huskText)
-                Text("Troubleshoot file previews. Run only when previews are stale.")
-                    .font(.system(size: 12))
-                    .foregroundStyle(Color.huskTextMuted)
-            }
-            .padding(.horizontal, HuskTheme.contentPadding)
-            .padding(.top, 18)
-            .padding(.bottom, 14)
-
+        VStack(spacing: 0) {
+            HuskPageHeader(title: "Maintenance", subtitle: "Targeted troubleshooting for your Mac.") { EmptyView() }
             ScrollView {
-                VStack(spacing: 10) {
-                    Text("macOS manages memory automatically. Clearing caches can make the next launch slower. Husk does not purge RAM or run privileged DNS commands.").font(.callout).foregroundStyle(.secondary)
+                VStack(alignment: .leading, spacing: 20) {
+                    HuskNotice(message: "macOS manages memory automatically. A cache reset may slow the next launch. Run maintenance when you have a specific problem.", systemImage: "wrench.and.screwdriver")
                     ForEach(OptimizeService.tasks) { task in
-                        HStack(alignment: .top, spacing: 14) {
-                            Image(systemName: task.systemImage)
-                                .font(.title2)
-                                .foregroundStyle(Color.huskPrimary)
-                                .frame(width: 36)
-                            VStack(alignment: .leading, spacing: 4) {
-                                Text(task.title)
-                                    .font(.system(size: 14, weight: .semibold))
-                                    .foregroundStyle(Color.huskText)
-                                Text(task.detail)
-                                    .font(.system(size: 12))
-                                    .foregroundStyle(Color.huskTextMuted)
-                                if task.needsAdmin {
-                                    Text("May require administrator permission")
-                                        .font(.caption)
-                                        .foregroundStyle(Color.cautionLabel)
+                        HuskCard(padding: 22) {
+                            VStack(alignment: .leading, spacing: 16) {
+                                Label(task.title, systemImage: task.systemImage).font(.title3.weight(.semibold))
+                                Text(task.detail).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
+                                HStack {
+                                    Text("No administrator access required").font(.callout).foregroundStyle(.secondary)
+                                    Spacer()
+                                    if runningID == task.id { ProgressView().controlSize(.small) }
+                                    HuskPillButton(title: "Review reset", systemImage: "arrow.clockwise") { pendingTask = task }.disabled(runningID != nil)
                                 }
                             }
-                            Spacer()
-                            Button {
-                                Task {
-                                    runningID = task.id
-                                    let result = await OptimizeService.run(task)
-                                    lastSuccess = result.success
-                                    lastMessage = result.message
-                                    runningID = nil
-                                }
-                            } label: {
-                                if runningID == task.id {
-                                    ProgressView().controlSize(.small).tint(Color.huskPrimary)
-                                } else {
-                                    Text("Run")
-                                        .fontWeight(.semibold)
-                                        .padding(.horizontal, 16)
-                                        .padding(.vertical, 8)
-                                        .background(Capsule().fill(Color.huskPrimary))
-                                        .foregroundStyle(Color.huskOnPrimary)
-                                }
-                            }
-                            .buttonStyle(.plain)
-                            .disabled(runningID != nil)
                         }
-                        .padding(16)
-                        .background(
-                            RoundedRectangle(cornerRadius: 16, style: .continuous)
-                                .fill(Color.huskSurface.opacity(0.9))
-                                .overlay(
-                                    RoundedRectangle(cornerRadius: 16, style: .continuous)
-                                        .strokeBorder(Color.huskBorder)
-                                )
-                        )
                     }
-
-                    if let lastMessage {
-                        HStack(alignment: .top) {
-                            Image(systemName: lastSuccess == true ? "checkmark.circle.fill" : "info.circle.fill")
-                                .foregroundStyle(lastSuccess == true ? Color.safeLabel : Color.reviewLabel)
-                            Text(lastMessage)
-                                .font(.callout)
-                                .foregroundStyle(Color.huskTextSecondary)
-                                .textSelection(.enabled)
-                        }
-                        .padding(14)
-                        .background(
-                            RoundedRectangle(cornerRadius: 12).fill(Color.huskSurfaceHigh.opacity(0.5))
-                        )
+                    if let lastMessage { HuskNotice(message: lastMessage, systemImage: lastSuccess == true ? "checkmark.circle" : "exclamationmark.triangle") }
+                    HuskCard(padding: 22) {
+                        VStack(alignment: .leading, spacing: 12) {
+                            Text("AI tool maintenance").font(.title3.weight(.semibold))
+                            Text("Review regenerable caches in AI Storage. Manage chat retention, models and installed versions with each tool’s own manager. A recently modified folder is not reliable evidence of use.").foregroundStyle(.secondary)
+                            Text("Automatic RAM purges and privileged system resets are not offered.").font(.callout).foregroundStyle(.secondary)
+                        }.frame(maxWidth: .infinity, alignment: .leading)
                     }
-                }
-                .padding(.horizontal, HuskTheme.contentPadding)
-                .padding(.bottom, 24)
+                }.padding(HuskTheme.contentPadding)
             }
         }
+        .confirmationDialog("Reset Quick Look cache?", isPresented: Binding(get: { pendingTask != nil }, set: { if !$0 { pendingTask = nil } }), titleVisibility: .visible) {
+            Button("Reset cache") {
+                guard let task = pendingTask else { return }
+                pendingTask = nil
+                Task {
+                    runningID = task.id
+                    let result = await OptimizeService.run(task)
+                    lastMessage = result.message; lastSuccess = result.success; runningID = nil
+                }
+            }
+            Button("Cancel", role: .cancel) { pendingTask = nil }
+        } message: { Text("Generated file previews will be rebuilt as you browse. This runs qlmanage -r cache.") }
     }
 }

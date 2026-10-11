@@ -41,3 +41,24 @@ Reproduce the current service with `scripts/profile-sizing.sh`. It creates its o
 Benchmark fixtures use newly created empty files. Both local traversals completed for 10K and 100K entries. 10K took 0.847/0.785 seconds; 100K took 8.001/8.195 seconds. Cancellation completed 1.19/0.13 milliseconds after request. These are OS-cache-dependent metadata results, not a controlled cold benchmark, real-home speed promise, or freed-byte measurement.
 
 Sanitizers and object/resource fixtures are useful evidence for specific bugs. They do not prove the whole app is leak-free. Long Instruments allocation/footprint recordings, full window/sleep/wake flows, 1M entries, slow/network volumes, and real Trash/restore integration remain unverified. See AUDIT_RESOLUTION.md for residual policy and filesystem race limits.
+
+## Original design refinement and AI storage, 2026-10-11
+
+The original compact rail, hidden title bar, centered cleanup hero, amber pills, subtle background glow and rounded panels are restored. Shared headers, readable light-mode labels and split inspectors carry that style through all seven sections, onboarding and removal sheets. Compact navigation is the default; Settings can show navigation labels. The welcome action stays visible while longer permission guidance scrolls.
+
+| Check | Observed result |
+|---|---|
+| Final core suite | 39 total tests in 13 suites, 38 active plus one skipped optional benchmark, passed in 6.915 seconds. |
+| Thread Sanitizer | Same suite passed in 6.707 seconds; no race report in captured output. |
+| Address Sanitizer | Same suite passed in 6.736 seconds; no memory-error report in captured output. |
+| AI policy | Fixed cache leaves vs lookalikes/parents, case variants, blocked/empty activity probes, protected/partial selections, redirected discovery and shared scanner rules pass. Fresh activity at execution prevents the injected Trash mover from running. |
+| Worktree integration | A disposable real Git repo and locked working copy report untracked changes while keeping contents and registrations intact. NUL-delimited paths preserve spaces/newlines. |
+| Native UI | 52 captures: 13 screens/states, light and dark, 960×640 and 1200×720. Visible control text verified with Vision at the minimum light size. An actual NSEvent click on Select Safe changes the model; AI selections and protected-session controls retain their policy. Screens cover start/results, applications, populated process metrics/table, maintenance, settings, onboarding and both removal sheets. |
+| Fixture isolation | UI runner suppresses live app enumeration, status sampling and history reads. Fixtures contain demonstration paths only. Capture targets only the runner's windows; no cleanup action executes. |
+| Builds | Final Debug and universal Release succeed with signing disabled. lipo reports x86_64 and arm64. |
+| Memory follow-up | Current 100K-entry sizing probe visited all entries in 7.588 seconds, peak RSS 34.39 MiB and footprint 16.25 MiB; 160 MiB RSS budget passed. No traversal implementation changed in the UI refinement. |
+| HTML | AI policy discussion checked at desktop/mobile widths in light/dark, no horizontal overflow or console errors; local-note download exercised. |
+
+Reproduce with `swift test --scratch-path /tmp/husk-ai-tests`, adding `--sanitize=thread` or `--sanitize=address` with separate scratch directories. Run `scripts/ui-smoke.sh` from the repo root after a Debug build; `HUSK_UI_ASSETS` can point to the built Assets.car. It needs local Screen Recording access. Captures are generated outside the repository. The fixture host uses fixed window sizes; Vision runs off the main actor using supported CPU compute stages, and transient ScreenCaptureKit stream-start errors have two bounded retries. Native controls are rendered in their active state.
+
+These captures verify rendering and one native selection action. They do not establish a full VoiceOver/keyboard walkthrough, real-home cleanup, compatibility with every supported OS, or a whole-app leak assessment. Sessions, worktrees, models and installed tools remain inspection-only. Grok has no verified standalone cache rule. Owner-specific retention and version pruning are listed in AI_STORAGE_DISCUSSION.html. No signing, notarization, push or publication was performed.

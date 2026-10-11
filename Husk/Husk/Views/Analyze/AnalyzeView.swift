@@ -1,258 +1,124 @@
-//
-//  AnalyzeView.swift
-//  Husk
-//
-
 import AppKit
 import SwiftUI
+import UniformTypeIdentifiers
 
 struct AnalyzeView: View {
     @Bindable var model: AnalyzeViewModel
-    @State private var selectedRect: TreemapRect?
-    @State private var showList = true
+    @State private var selectedID: UUID?
+    @State private var layout = "List"
+    @State private var choosingFolder = false
+    @State private var search = ""
+    private var nodes: [DiskNode] {
+        (model.current?.sortedChildren() ?? []).filter { search.isEmpty || $0.name.localizedCaseInsensitiveContains(search) }
+    }
+    private var selected: DiskNode? { nodes.first { $0.id == selectedID } }
 
     var body: some View {
         VStack(spacing: 0) {
-            header
-            if model.isLoading {
-                ProgressView()
-                    .controlSize(.small)
-                    .tint(Color.huskPrimary)
-                    .padding(.bottom, 8)
+            HuskPageHeader(title: "Storage Map", subtitle: "Find large folders using local file metadata.") {
+                if model.isLoading { Button("Cancel") { model.cancel() } }
+                Menu("Choose location", systemImage: "folder") {
+                    Button("Choose folder…") { choosingFolder = true }
+                    Button("Home folder") { model.scan(path: NSHomeDirectory()) }
+                    Button("Library") { model.scan(path: NSHomeDirectory() + "/Library") }
+                    Button("Downloads") { model.scan(path: NSHomeDirectory() + "/Downloads") }
+                }.disabled(model.isLoading)
             }
-            breadcrumbs
-            if let error = model.errorMessage { Text(error).foregroundStyle(.orange).textSelection(.enabled).padding() }
-            if let current = model.current {
-                Text("Allocated estimate: " + ByteFormat.string(for: current.byteCount) + " · " + current.completeness.rawValue
-                     + " · Other/hidden: " + ByteFormat.string(for: current.omittedBytes))
-                    .font(.callout).foregroundStyle(.secondary).padding(.horizontal)
-                if let issue = current.issues.first { Text(issue.message).font(.caption).foregroundStyle(.orange) }
-            }
-            if showList { storageList } else { treemapArea }
-            if let selectedRect {
-                selectionBar(selectedRect)
-            }
+            if let error = model.errorMessage { HuskNotice(message: error, systemImage: "exclamationmark.triangle").padding(.horizontal, HuskTheme.contentPadding) }
+            if model.current == nil && !model.isLoading {
+                ContentUnavailableView {
+                    Label("Know where your space goes", systemImage: "chart.pie")
+                } description: {
+                    Text("Choose a local folder to see allocated sizes, then browse the list or storage map. Hidden items are included by default.")
+                } actions: {
+                    HuskPillButton(title: "Choose folder", systemImage: "folder") { choosingFolder = true }
+                }
+            } else { results }
         }
         .sheet(item: $model.removalPlan) { plan in
-            RemovalReviewSheet(plan: plan) { frozen in Task { await model.trash(frozen); selectedRect = nil } }
+            RemovalReviewSheet(plan: plan) { frozen in Task { await model.trash(frozen); selectedID = nil } }
         }
         .sheet(item: $model.removalResult) { RemovalResultSheet(result: $0) }
-        .onChange(of: model.isLoading) { _, loading in if loading { selectedRect = nil } }
-
-    }
-
-    private var header: some View {
-        HStack {
-            VStack(alignment: .leading, spacing: 2) {
-                Text("Storage Analysis")
-                    .font(.system(size: 20, weight: .semibold))
-                    .foregroundStyle(Color.huskText)
-                Text(model.statusText)
-                    .font(.system(size: 12))
-                    .foregroundStyle(Color.huskTextMuted)
-                    .lineLimit(1)
+        .onChange(of: model.isLoading) { _, loading in if loading { selectedID = nil } }
+        .fileImporter(isPresented: $choosingFolder, allowedContentTypes: [.folder]) { result in
+            switch result {
+            case .success(let url): model.scan(path: url.path)
+            case .failure(let error): model.errorMessage = error.localizedDescription
             }
-            Spacer()
-            if model.isLoading {
-                Button("Cancel") { model.cancel() }
-                    .buttonStyle(.plain)
-                    .foregroundStyle(Color.huskTextSecondary)
-            }
-            Toggle("List", isOn: $showList).toggleStyle(.button)
-            Toggle("Hidden", isOn: $model.includeHidden)
-                .onChange(of: model.includeHidden) { model.scan(path: model.current?.path ?? model.selectedRootPath) }
-            Menu {
-                Button("Choose Folder…") {
-                    let panel = NSOpenPanel()
-                    panel.canChooseDirectories = true
-                    panel.canChooseFiles = false
-                    if panel.runModal() == .OK, let url = panel.url { model.scan(path: url.path) }
-                }
-                Button("Library") {
-                    model.scan(path: (NSHomeDirectory() as NSString).appendingPathComponent("Library"))
-                }
-                Button("Downloads") {
-                    model.scan(path: (NSHomeDirectory() as NSString).appendingPathComponent("Downloads"))
-                }
-                Button("Documents") {
-                    model.scan(path: (NSHomeDirectory() as NSString).appendingPathComponent("Documents"))
-                }
-                Button("Home") { model.scan(path: NSHomeDirectory()) }
-                Button("Applications") { model.scan(path: "/Applications") }
-                Button("User Caches") {
-                    model.scan(path: (NSHomeDirectory() as NSString).appendingPathComponent("Library/Caches"))
-                }
-            } label: {
-                Label("Location", systemImage: "folder")
-                    .font(.system(size: 12, weight: .semibold))
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 8)
-                    .background(Capsule().fill(Color.huskSurfaceHigh))
-                    .foregroundStyle(Color.huskText)
-            }
-            .menuStyle(.borderlessButton)
-        }
-        .padding(.horizontal, HuskTheme.contentPadding)
-        .padding(.top, 18)
-        .padding(.bottom, 10)
-    }
-
-    private var breadcrumbs: some View {
-        ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 6) {
-                if model.breadcrumbs.isEmpty {
-                    Text("Pick a location to map folders like node_modules, Builds, Caches…")
-                        .font(.caption)
-                        .foregroundStyle(Color.huskTextMuted)
-                }
-                ForEach(Array(model.breadcrumbs.enumerated()), id: \.offset) { index, node in
-                    if index > 0 {
-                        Image(systemName: "chevron.right")
-                            .font(.caption2)
-                            .foregroundStyle(Color.huskTextMuted)
-                    }
-                    Button(node.name.isEmpty ? "Disk" : node.name) {
-                        model.goToBreadcrumb(index: index)
-                        selectedRect = nil
-                    }
-                    .buttonStyle(.plain)
-                    .font(.system(size: 12, weight: index == model.breadcrumbs.count - 1 ? .semibold : .regular))
-                    .foregroundStyle(index == model.breadcrumbs.count - 1 ? Color.huskPrimary : Color.huskTextSecondary)
-                }
-            }
-            .padding(.horizontal, HuskTheme.contentPadding)
-            .padding(.bottom, 10)
         }
     }
 
-    private var storageList: some View {
-        List(model.current?.sortedChildren() ?? []) { node in
-            HStack {
-                Label(node.name, systemImage: node.isDirectory ? "folder" : "doc")
-                Spacer()
-                Text(ByteFormat.string(for: node.byteCount)).monospacedDigit()
-                Text(node.completeness.rawValue).foregroundStyle(.secondary)
-                Button("Reveal") { model.reveal(node.path) }
-                if node.isDirectory { Button("Open") { model.drill(into: node) } }
-                Button("Review removal") { Task { await model.prepareRemoval(path: node.path, bytes: node.byteCount) } }
-                    .disabled(PathSafety.isProtected(node.path) || node.completeness == .unavailable)
-            }.contextMenu {
-                Button("Exclude from scans") {
-                    UserDefaults.standard.set(ScanPreferences.excludedPaths + [node.path], forKey: "husk.excludedPaths")
-                    model.scan(path: model.current?.path)
+    private var results: some View {
+        VStack(spacing: 14) {
+            ScrollView(.horizontal) {
+                HStack(spacing: 6) {
+                    ForEach(model.breadcrumbs) { node in
+                        Button(node.name.isEmpty ? "Disk" : node.name) {
+                            if let index = model.breadcrumbs.firstIndex(where: { $0.id == node.id }) { model.goToBreadcrumb(index: index); selectedID = nil }
+                        }.buttonStyle(.borderless)
+                        if node.id != model.breadcrumbs.last?.id { Image(systemName: "chevron.right").foregroundStyle(.secondary).accessibilityHidden(true) }
+                    }
                 }
             }
-        }.overlay {
-            if model.current == nil { ContentUnavailableView("Choose a folder", systemImage: "folder", description: Text("Measure local storage without reading file contents.")) }
-        }
-    }
-
-    private var treemapArea: some View {
-        GeometryReader { geo in
-            ZStack {
-                RoundedRectangle(cornerRadius: HuskTheme.cardRadius, style: .continuous)
-                    .fill(Color.huskSurface.opacity(0.65))
-                    .overlay(
-                        RoundedRectangle(cornerRadius: HuskTheme.cardRadius, style: .continuous)
-                            .strokeBorder(Color.huskBorder)
-                    )
-
-                if model.isLoading && model.current == nil {
-                    VStack(spacing: 12) {
-                        ProgressView().tint(Color.huskPrimary)
-                        Text(model.statusText)
-                            .font(.caption)
-                            .foregroundStyle(Color.huskTextMuted)
-                    }
-                } else if let current = model.current {
-                    let children = current.sortedChildren()
-                    if children.isEmpty {
-                        Text("Empty or unreadable")
-                            .foregroundStyle(Color.huskTextMuted)
-                    } else {
-                        TreemapView(
-                            nodes: children,
-                            size: CGSize(width: geo.size.width - 16, height: geo.size.height - 16),
-                            selectedID: selectedRect?.nodeID,
-                            onSelect: { selectedRect = $0 },
-                            onOpen: { rect in
-                                if rect.isDirectory {
-                                    model.drill(into: DiskNode(
-                                        id: rect.nodeID,
-                                        name: rect.name,
-                                        path: rect.path,
-                                        isDirectory: true,
-                                        byteCount: rect.byteCount
-                                    ))
-                                    selectedRect = nil
-                                }
-                            }
-                        )
-                        .padding(8)
-                    }
-                } else {
-                    VStack(spacing: 14) {
-                        Image(systemName: "square.grid.2x2")
-                            .font(.system(size: 36, weight: .light))
-                            .foregroundStyle(Color.huskTeal.opacity(0.8))
-                        Text("Map project bulk")
-                            .font(.headline)
-                            .foregroundStyle(Color.huskText)
-                        Text("See node_modules, build folders, and caches as a treemap.")
-                            .font(.caption)
-                            .foregroundStyle(Color.huskTextMuted)
-                        HuskPillButton(title: "Analyze Library", systemImage: "square.grid.2x2") {
-                            model.scan(path: (NSHomeDirectory() as NSString).appendingPathComponent("Library"))
+            HStack(spacing: 16) {
+                HuskSearchField(prompt: "Filter folder contents", text: $search)
+                Toggle("Hidden items", isOn: $model.includeHidden).onChange(of: model.includeHidden) { model.scan(path: model.current?.path ?? model.selectedRootPath) }
+                Picker("View", selection: $layout) { Text("List").tag("List"); Text("Map").tag("Map") }
+                    .pickerStyle(.segmented).labelsHidden().frame(width: 130)
+            }
+            if let current = model.current {
+                HStack {
+                    Label(ByteFormat.string(for: current.byteCount), systemImage: "internaldrive").font(.headline)
+                    Text("\(current.completeness.rawValue.capitalized) · Other/hidden \(ByteFormat.string(for: current.omittedBytes))").foregroundStyle(.secondary)
+                    Spacer()
+                    Button("Refresh", systemImage: "arrow.clockwise") { model.scan(path: current.path) }.disabled(model.isLoading)
+                }
+                if let issue = current.issues.first { HuskNotice(message: issue.message) }
+            }
+            if model.isLoading { ProgressView(model.statusText).frame(maxWidth: .infinity) }
+            if layout == "List" {
+                Table(nodes, selection: $selectedID) {
+                    TableColumn("Name") { node in Label(node.name, systemImage: node.isDirectory ? "folder" : "doc").lineLimit(1) }
+                    TableColumn("Allocated size") { node in Text(ByteFormat.string(for: node.byteCount)).monospacedDigit() }.width(130)
+                    TableColumn("Coverage") { node in Text(node.completeness.rawValue.capitalized).foregroundStyle(.secondary) }.width(100)
+                    TableColumn("Browse") { node in
+                        if node.isDirectory { Button("Open", systemImage: "chevron.right") { model.drill(into: node) }.disabled(model.isLoading) }
+                    }.width(80)
+                }
+                .scrollContentBackground(.hidden)
+                .background(Color.huskSurface.opacity(0.92), in: .rect(cornerRadius: HuskTheme.cardRadius))
+                .clipShape(.rect(cornerRadius: HuskTheme.cardRadius))
+                .contextMenu(forSelectionType: UUID.self) { ids in
+                    if let node = nodes.first(where: { ids.contains($0.id) }) {
+                        Button("Reveal in Finder") { model.reveal(node.path) }
+                        Button("Exclude from scans") {
+                            UserDefaults.standard.set(Array(Set(ScanPreferences.excludedPaths + [node.path])).sorted(), forKey: "husk.excludedPaths")
+                            model.scan(path: model.current?.path)
                         }
                     }
                 }
+            } else {
+                GeometryReader { geometry in
+                    TreemapView(nodes: nodes, size: geometry.size, selectedID: selectedID,
+                        onSelect: { selectedID = $0.nodeID },
+                        onOpen: { rect in if let node = nodes.first(where: { $0.id == rect.nodeID }) { model.drill(into: node) } })
+                }
             }
-        }
-        .padding(.horizontal, HuskTheme.contentPadding)
-        .padding(.bottom, 12)
+            if let selected { selectionBar(selected) }
+            else { Text("Select a row to reveal its path or review removal. Sizes include shared APFS data and are estimates.").font(.callout).foregroundStyle(.secondary).frame(maxWidth: .infinity, alignment: .leading) }
+        }.padding(.horizontal, HuskTheme.contentPadding).padding(.bottom, HuskTheme.contentPadding)
     }
 
-    private func selectionBar(_ rect: TreemapRect) -> some View {
-        HStack(spacing: 12) {
-            Image(systemName: rect.isDirectory ? "folder.fill" : "doc")
-                .foregroundStyle(Color.huskPrimary)
-            VStack(alignment: .leading, spacing: 2) {
-                Text(rect.name)
-                    .font(.system(size: 13, weight: .semibold))
-                    .foregroundStyle(Color.huskText)
-                Text(rect.path)
-                    .font(.system(size: 10, design: .monospaced))
-                    .foregroundStyle(Color.huskTextMuted)
-                    .lineLimit(1)
-                    .truncationMode(.middle)
-            }
-            Spacer()
-            Text(ByteFormat.string(for: rect.byteCount))
-                .font(.system(size: 13, weight: .semibold, design: .monospaced))
-                .foregroundStyle(Color.huskPrimary)
-            Button("Reveal") { model.reveal(rect.path) }
-                .buttonStyle(.plain)
-                .foregroundStyle(Color.huskTextSecondary)
-            if rect.isDirectory {
-                Button("Open") {
-                    model.drill(into: DiskNode(
-                        id: rect.nodeID, name: rect.name, path: rect.path,
-                        isDirectory: true, byteCount: rect.byteCount
-                    ))
-                    selectedRect = nil
-                }
-                .buttonStyle(.plain)
-                .foregroundStyle(Color.huskTextSecondary)
-            }
-            HuskPillButton(title: "Move to Trash", systemImage: "trash", prominent: true) {
-                Task { await model.prepareRemoval(path: rect.path, bytes: rect.byteCount) }
-            }
-            .disabled(PathSafety.isProtected(rect.path))
-            .scaleEffect(0.92)
-        }
-        .padding(.horizontal, HuskTheme.contentPadding)
-        .padding(.vertical, 12)
-        .background(Color.huskSurfaceLow.opacity(0.95))
-        .overlay(alignment: .top) { Rectangle().fill(Color.huskBorder).frame(height: 1) }
+    private func selectionBar(_ node: DiskNode) -> some View {
+        HStack(spacing: 14) {
+            VStack(alignment: .leading, spacing: 5) {
+                Text(node.name).font(.headline)
+                Text(node.path).font(.body.monospaced()).lineLimit(2).truncationMode(.middle).textSelection(.enabled)
+            }.frame(maxWidth: .infinity, alignment: .leading)
+            Button("Reveal", systemImage: "folder") { model.reveal(node.path) }
+            HuskPillButton(title: "Review removal", systemImage: "trash") {
+                Task { await model.prepareRemoval(path: node.path, bytes: node.byteCount) }
+            }.disabled(model.isLoading || PathSafety.isProtected(node.path) || node.completeness == .unavailable)
+        }.padding(14).background(Color.huskSurface, in: .rect(cornerRadius: HuskTheme.cardRadius))
     }
 }

@@ -26,8 +26,9 @@ struct TreemapView: View {
             ForEach(rects) { rect in
                 let isSelected = selectedID == rect.nodeID
                 let base = Color.treemapPalette[rect.colorIndex % Color.treemapPalette.count]
+                Button { onSelect(rect) } label: {
                 RoundedRectangle(cornerRadius: 8, style: .continuous)
-                    .fill(base.opacity(isSelected ? 0.95 : 0.75))
+                    .fill(base)
                     .overlay {
                         RoundedRectangle(cornerRadius: 8, style: .continuous)
                             .strokeBorder(
@@ -36,14 +37,14 @@ struct TreemapView: View {
                             )
                     }
                     .overlay(alignment: .topLeading) {
-                        if rect.width > 56, rect.height > 32 {
+                        if rect.width > 100, rect.height > 54 {
                             VStack(alignment: .leading, spacing: 2) {
                                 Text(rect.name)
-                                    .font(.system(size: 11, weight: .semibold))
+                                    .font(.body.weight(.medium))
                                     .foregroundStyle(Color.white.opacity(0.9))
                                     .lineLimit(1)
                                 Text(ByteFormat.string(for: rect.byteCount))
-                                    .font(.system(size: 10, design: .monospaced))
+                                    .font(.callout.monospacedDigit())
                                     .foregroundStyle(Color.huskPrimary.opacity(0.95))
                             }
                             .padding(8)
@@ -51,14 +52,15 @@ struct TreemapView: View {
                         }
                     }
                     .frame(width: max(rect.width, 1), height: max(rect.height, 1))
+                }.buttonStyle(.plain)
                     .position(x: rect.x + rect.width / 2, y: rect.y + rect.height / 2)
                     .contentShape(Rectangle())
-                    .onTapGesture(count: 2) {
+                    .simultaneousGesture(TapGesture(count: 2).onEnded {
                         onSelect(rect)
                         if rect.isDirectory { onOpen(rect) }
-                    }
-                    .onTapGesture(count: 1) { onSelect(rect) }
+                    })
                     .accessibilityElement(children: .ignore)
+                    .accessibilityValue(isSelected ? "Selected" : "")
                     .accessibilityLabel(rect.name + ", " + ByteFormat.string(for: rect.byteCount))
                     .accessibilityAction(named: "Select") { onSelect(rect) }
                     .accessibilityAction(named: "Open") { if rect.isDirectory { onOpen(rect) } }

@@ -1,160 +1,55 @@
-//
-//  OnboardingView.swift
-//  Husk
-//
-
 import SwiftUI
 
 struct OnboardingView: View {
     @Environment(PermissionService.self) private var permissions
     var onFinished: () -> Void
-
     var body: some View {
-        ZStack {
-            HuskBackground(glow: Color.huskPrimary.opacity(0.22))
-
-            VStack(spacing: 0) {
-                Spacer(minLength: 24)
-
-                HuskBrandMark(size: 128, showGlow: true, glowRadius: 40)
-                    .padding(.bottom, 28)
-
-                Text("Welcome to Husk")
-                    .font(.system(size: 30, weight: .semibold))
-                    .foregroundStyle(Color.huskText)
-
-                Text("Peel regenerable clutter. Preview every path. Trash only.")
-                    .font(.system(size: 14))
-                    .foregroundStyle(Color.huskTextMuted)
-                    .multilineTextAlignment(.center)
-                    .padding(.top, 8)
-                    .padding(.horizontal, 40)
-
-                VStack(alignment: .leading, spacing: 12) {
-                    featureRow(
-                        icon: "eye",
-                        title: "Transparent cleaning",
-                        detail: "Every cache path is listed with a safety label before anything moves."
-                    )
-                    featureRow(
-                        icon: "cpu",
-                        title: "AI & developer clutter",
-                        detail: "Claude, Cursor, Codex, Ollama, node_modules, DerivedData, and more."
-                    )
-                    featureRow(
-                        icon: "trash",
-                        title: "Trash only, never shred",
-                        detail: "Safe by default. Empty Trash yourself when you’re ready."
-                    )
-                    featureRow(
-                        icon: "lock.shield",
-                        title: "Local and private",
-                        detail: "Zero telemetry. All processing stays on your Mac."
-                    )
+        ScrollView {
+            VStack(spacing: 24) {
+                HuskBrandMark(size: 108, showGlow: true, glowRadius: 32).accessibilityHidden(true)
+                VStack(spacing: 10) {
+                    Text("Welcome to Husk").font(.system(size: 30, weight: .semibold))
+                    Text("A little more room. A lot more control.").font(.title3).foregroundStyle(.secondary)
                 }
-                .padding(20)
-                .frame(maxWidth: 440)
-                .background(
-                    RoundedRectangle(cornerRadius: HuskTheme.cardRadius, style: .continuous)
-                        .fill(Color.huskSurface.opacity(0.9))
-                        .overlay(
-                            RoundedRectangle(cornerRadius: HuskTheme.cardRadius, style: .continuous)
-                                .strokeBorder(Color.huskBorder)
-                        )
-                )
-                .padding(.top, 28)
-
-                // Full Disk Access step
-                VStack(spacing: 12) {
-                    HStack(spacing: 10) {
-                        Image(systemName: permissions.hasFullDiskAccess ? "checkmark.circle.fill" : "lock.open")
-                            .foregroundStyle(permissions.hasFullDiskAccess ? Color.safeLabel : Color.huskPrimary)
-                        Text(
-                            permissions.hasFullDiskAccess
-                                ? "Full Disk Access granted"
-                                : "Full Disk Access helps Husk see Safari and deep Library caches"
-                        )
-                        .font(.system(size: 12))
-                        .foregroundStyle(Color.huskTextSecondary)
-                        .multilineTextAlignment(.leading)
-                        Spacer(minLength: 0)
-                    }
-
-                    if !permissions.hasFullDiskAccess {
-                        Button {
-                            permissions.openFullDiskAccessSettings()
-                        } label: {
-                            Text("Open System Settings")
-                                .font(.system(size: 13, weight: .semibold))
-                                .frame(maxWidth: .infinity)
-                                .padding(.vertical, 10)
-                                .background(
-                                    RoundedRectangle(cornerRadius: 12, style: .continuous)
-                                        .strokeBorder(Color.huskBorder)
-                                )
-                                .foregroundStyle(Color.huskText)
-                        }
-                        .buttonStyle(.plain)
-
-                        Button("I’ve granted access — re-check") {
-                            permissions.refresh()
-                        }
-                        .buttonStyle(.plain)
-                        .font(.system(size: 12, weight: .medium))
-                        .foregroundStyle(Color.huskPrimary)
+                HuskCard(padding: 22) {
+                    VStack(alignment: .leading, spacing: 20) {
+                        feature("Review before cleanup", "Inspect full paths, size coverage and risk before anything moves.", "eye")
+                        feature("AI and developer storage", "Find regenerable caches. Keep conversations, working copies and installed models protected.", "cpu")
+                        feature("Local and recoverable", "Scans stay on this Mac. Reviewed items go to Trash, and you decide when to empty it.", "lock.shield")
                     }
                 }
-                .padding(16)
-                .frame(maxWidth: 440)
-                .padding(.top, 14)
-
-                Spacer(minLength: 16)
-
-                HuskPillButton(
-                    title: permissions.hasFullDiskAccess ? "Get started" : "Continue without it",
-                    systemImage: "arrow.right"
-                ) {
-                    onFinished()
+                HuskCard(padding: 22) {
+                    VStack(alignment: .leading, spacing: 14) {
+                        Label("Optional disk access", systemImage: permissions.hasFullDiskAccess ? "checkmark.shield" : "folder.badge.questionmark").font(.headline)
+                        Text(permissions.hasFullDiskAccess ? "The readability probe detected access. Each scan still reports folders it cannot measure." : "You can start with limited access. Full Disk Access lets Husk measure more protected Library locations; credentials and cloud storage remain excluded.")
+                            .foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
+                        HStack {
+                            Button("Open System Settings") { permissions.openFullDiskAccessSettings() }
+                            Button("Check access") { permissions.refresh() }
+                        }
+                    }
                 }
-                .padding(.bottom, 12)
 
-                Text("ZERO TELEMETRY · LOCAL ONLY · $0 FREE / $9.99 LIFETIME")
-                    .font(.system(size: 10, weight: .semibold))
-                    .tracking(1.0)
-                    .foregroundStyle(Color.huskTextMuted.opacity(0.75))
-                    .padding(.bottom, 28)
-            }
-            .padding(.horizontal, 24)
+            }.frame(maxWidth: 500).padding(32).frame(maxWidth: .infinity)
         }
-        .task {
-            permissions.refresh()
+        .safeAreaInset(edge: .bottom) {
+            HStack(spacing: 20) {
+                Text("No telemetry. No account required.").font(.callout).foregroundStyle(.secondary)
+                Spacer()
+                HuskPillButton(title: "Get started", systemImage: "arrow.right", action: onFinished).keyboardShortcut(.defaultAction)
+            }.frame(maxWidth: 620).padding(20).frame(maxWidth: .infinity).background(Color.huskSurface)
         }
+        .background { HuskBackground() }.task { permissions.refresh() }
     }
-
-    private func featureRow(icon: String, title: String, detail: String) -> some View {
-        HStack(alignment: .top, spacing: 12) {
-            Image(systemName: icon)
-                .font(.system(size: 14, weight: .semibold))
-                .foregroundStyle(Color.huskPrimary)
-                .frame(width: 28, height: 28)
-                .background(Circle().fill(Color.huskPrimary.opacity(0.12)))
-            VStack(alignment: .leading, spacing: 2) {
-                Text(title)
-                    .font(.system(size: 13, weight: .semibold))
-                    .foregroundStyle(Color.huskText)
-                Text(detail)
-                    .font(.system(size: 12))
-                    .foregroundStyle(Color.huskTextMuted)
-                    .fixedSize(horizontal: false, vertical: true)
+    private func feature(_ title: String, _ description: String, _ image: String) -> some View {
+        HStack(alignment: .top, spacing: 14) {
+            Image(systemName: image).font(.title2).foregroundStyle(Color.huskAccentText).frame(width: 28).accessibilityHidden(true)
+            VStack(alignment: .leading, spacing: 6) {
+                Text(title).font(.headline)
+                Text(description).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
             }
-            Spacer(minLength: 0)
         }
     }
 }
 
-#Preview {
-    OnboardingView(onFinished: {})
-        .environment(PermissionService())
-        .frame(width: 900, height: 700)
-        .preferredColorScheme(.dark)
-}
+#Preview { OnboardingView(onFinished: {}).environment(PermissionService()).frame(width: 960, height: 720) }

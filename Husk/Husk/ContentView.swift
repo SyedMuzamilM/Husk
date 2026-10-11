@@ -13,6 +13,7 @@ struct ContentView: View {
 
     @State private var section: AppSection = .clean
     @State private var cleanModel = CleanViewModel()
+    @State private var aiModel = AIStorageViewModel()
     @State private var analyzeModel = AnalyzeViewModel()
     @State private var appsModel = AppsViewModel()
     @State private var statusModel = StatusViewModel()
@@ -34,10 +35,9 @@ struct ContentView: View {
         }
         .frame(minWidth: HuskTheme.minWindowWidth, minHeight: HuskTheme.minWindowHeight)
         .preferredColorScheme(appearance == "dark" ? .dark : appearance == "light" ? .light : nil)
-        // Hidden title bar: keep layout clear of traffic lights.
         .ignoresSafeArea(edges: .top)
         .environment(permissions)
-        .focusedSceneValue(\.huskScanAction, { section = .clean; if !cleanModel.isBusy { cleanModel.startScan() } })
+        .focusedSceneValue(\.huskCleanModel, section == .clean && hasCompletedOnboarding ? cleanModel : nil)
         .onChange(of: scenePhase) { _, phase in
             if phase == .active {
                 permissions.refresh()
@@ -52,50 +52,32 @@ struct ContentView: View {
 
     private var mainShell: some View {
         HStack(spacing: 0) {
-            IconRail(selection: $section)
-
+            IconRail(selection: $section, freeSpace: freeSpaceText)
             ZStack {
-                HuskBackground(glow: glowColor)
-
+                HuskBackground(glow: section == .analyze || section == .status ? Color.huskTeal.opacity(0.10) : Color.huskPrimary.opacity(0.15))
                 Group {
                     switch section {
-                    case .clean:
-                        CleanView(model: cleanModel)
-                    case .analyze:
-                        AnalyzeView(model: analyzeModel)
-                    case .apps:
-                        AppsView(model: appsModel)
-                    case .status:
-                        StatusView(model: statusModel)
-                    case .optimize:
-                        OptimizeView()
-                    case .settings:
-                        SettingsView()
+                    case .clean: CleanView(model: cleanModel)
+                    case .aiStorage: AIStorageView(model: aiModel)
+                    case .analyze: AnalyzeView(model: analyzeModel)
+                    case .apps: AppsView(model: appsModel)
+                    case .status: StatusView(model: statusModel)
+                    case .optimize: OptimizeView()
+                    case .settings: SettingsView()
                     }
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .padding(.top, 12)
             }
         }
+        .tint(Color.huskPrimary)
         .onChange(of: section) { _, newSection in
             refreshFreeSpace()
-            if newSection == .settings {
-                permissions.refresh()
-            }
-            if newSection != .status {
-                statusModel.stop()
-            }
+            if newSection == .settings { permissions.refresh() }
+            if newSection != .status { statusModel.stop() }
         }
-    }
-
-    private var glowColor: Color {
-        switch section {
-        case .clean: return Color.huskPrimary.opacity(0.20)
-        case .analyze: return Color.huskTeal.opacity(0.14)
-        case .apps: return Color(red: 0.45, green: 0.50, blue: 0.85).opacity(0.16)
-        case .status: return Color.huskTeal.opacity(0.12)
-        case .optimize: return Color.huskPrimary.opacity(0.14)
-        case .settings: return Color.white.opacity(0.04)
-        }
+        .onChange(of: cleanModel.totalBytes) { refreshFreeSpace() }
+        .onChange(of: aiModel.items.count) { refreshFreeSpace() }
     }
 
     private func refreshFreeSpace() {
