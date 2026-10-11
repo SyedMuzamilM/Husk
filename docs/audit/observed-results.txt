@@ -1,0 +1,16 @@
+PATH protected keychains: true
+PATH parent Library accepted: true
+PATH ancestor /Users accepted: true
+PATH symlink ancestor bypass: true
+MAP largest omitted: true retained: 2
+MAP hidden omitted: true
+MAP unstable rectangle identity: true
+CLEAN exact duplicate target groups: 9
+CLEAN nested target pairs: 1
+CLEAN nonexistent-path result: finished(trashedBytes: 0, itemCount: 0)
+ANALYZE nonexistent-path reports success: true
+APPS unrelated app data matches: true
+MACH host send-right refs before/after 100 unreleased calls: 2 102
+PROBES completed without trashing any files
+STATUS production loop retains model after owner release: true
+STATUS model released after explicit stop: true
