@@ -1,3 +1,5 @@
+> Historical product plan. Proposed features and pricing are not current implementation claims. See the repository README and AUDIT_RESOLUTION.md for verified status.
+
 # Husk — Marketing Document
 
 **Product:** Husk  

@@ -1,6 +1,8 @@
 # Audit verification fixtures
 
-Run `python3 docs/audit/run.py` from the repository root on macOS with Xcode.
+These historical probes target the pre-fix revision `98c992f`. To reproduce the original observations, use a separate checkout of that revision and run `python3 docs/audit/run.py` from its repository root on macOS with Xcode. They are not compatible with the repaired removal API.
+
+For current regression verification, run `scripts/verify.sh` or `cd Husk && swift test`. See `docs/VERIFICATION.md`.
 
 The runner compiles current app services in a temporary directory. It creates
 temporary folders and synthetic data, probes path guards without deleting their

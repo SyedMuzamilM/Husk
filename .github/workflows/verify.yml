@@ -1,0 +1,21 @@
+name: Verify
+on:
+  push:
+  pull_request:
+permissions:
+  contents: read
+concurrency:
+  group: verify-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  macos:
+    runs-on: macos-15
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+      - name: Select required Xcode
+        run: sudo xcode-select --switch /Applications/Xcode_26.2.app/Contents/Developer
+      - name: Build and test without signing credentials
+        run: ./scripts/verify.sh

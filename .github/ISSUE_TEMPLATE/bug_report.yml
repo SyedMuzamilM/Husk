@@ -1,0 +1,20 @@
+name: Bug report
+description: Report a reproducible bug with disposable, redacted data.
+body:
+  - type: markdown
+    attributes:
+      value: For security defects, follow SECURITY.md. Do not paste personal paths or secrets.
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: Revision, macOS, hardware, permission state.
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Fixture reproduction
+      description: Steps, expected behavior, and observed behavior using disposable data.
+    validations:
+      required: true
