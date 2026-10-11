@@ -51,39 +51,43 @@ enum DirectorySizer {
             return true
         }) else { throw CocoaError(.fileReadNoPermission) }
         var seen: Set<String> = []
-        while let child = enumerator.nextObject() as? URL {
+        // Foundation produces autoreleased URLs and resource dictionaries.
+        // Drain each iteration instead of retaining them until the whole scan ends.
+        while let child = autoreleasepool(invoking: { enumerator.nextObject() as? URL }) {
             if shouldCancel() { throw CancellationError() }
             if result.visitedEntries >= maxEntries || started.duration(to: .now) > .seconds(deadline) {
                 result.note(url.path, "Measurement limit reached; displayed size is partial.")
                 break
             }
             result.visitedEntries += 1
-            if PathSafety.shouldSkipDirectoryName(child.lastPathComponent) || PathSafety.shouldSkipForSizing(child.path)
-                || PathSafety.isSensitiveForReading(child.path) || excluded(child.path) {
-                enumerator.skipDescendants()
-                result.note(child.path, "Excluded or protected location.")
-                continue
-            }
-            do {
-                let values = try child.resourceValues(forKeys: keys)
-                if values.isSymbolicLink == true { enumerator.skipDescendants(); continue }
-                let identity = try FileIdentity.read(child.path)
-                if identity.device != rootIdentity.device {
-                    enumerator.skipDescendants(); result.note(child.path, "Different volume; inspect it separately."); continue
+            autoreleasepool {
+                if PathSafety.shouldSkipDirectoryName(child.lastPathComponent) || PathSafety.shouldSkipForSizing(child.path)
+                    || PathSafety.isSensitiveForReading(child.path) || excluded(child.path) {
+                    enumerator.skipDescendants()
+                    result.note(child.path, "Excluded or protected location.")
+                    return
                 }
-                if values.isUbiquitousItem == true && values.ubiquitousItemDownloadingStatus != .current && values.ubiquitousItemDownloadingStatus != .downloaded {
-                    enumerator.skipDescendants(); result.note(child.path, "Cloud-only item; not downloaded for sizing."); continue
-                }
-                if values.isRegularFile == true {
-                    let key = "\(identity.device):\(identity.inode)"
-                    if seen.insert(key).inserted {
-                        result.bytes += allocated(values)
-                        if values.totalFileAllocatedSize == nil && values.fileAllocatedSize == nil {
-                            result.note(child.path, "Allocated size unavailable; logical size estimate used.")
+                do {
+                    let values = try child.resourceValues(forKeys: keys)
+                    if values.isSymbolicLink == true { enumerator.skipDescendants(); return }
+                    let identity = try FileIdentity.read(child.path)
+                    if identity.device != rootIdentity.device {
+                        enumerator.skipDescendants(); result.note(child.path, "Different volume; inspect it separately."); return
+                    }
+                    if values.isUbiquitousItem == true && values.ubiquitousItemDownloadingStatus != .current && values.ubiquitousItemDownloadingStatus != .downloaded {
+                        enumerator.skipDescendants(); result.note(child.path, "Cloud-only item; not downloaded for sizing."); return
+                    }
+                    if values.isRegularFile == true {
+                        let key = "\(identity.device):\(identity.inode)"
+                        if seen.insert(key).inserted {
+                            result.bytes += allocated(values)
+                            if values.totalFileAllocatedSize == nil && values.fileAllocatedSize == nil {
+                                result.note(child.path, "Allocated size unavailable; logical size estimate used.")
+                            }
                         }
                     }
-                }
-            } catch { result.note(child.path, error.localizedDescription); enumerator.skipDescendants() }
+                } catch { result.note(child.path, error.localizedDescription); enumerator.skipDescendants() }
+            }
         }
         if errorCount > 0 {
             result.status = .partial

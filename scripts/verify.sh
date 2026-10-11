@@ -3,9 +3,10 @@ set -euo pipefail
 repo_root="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$repo_root/Husk"
 swift test
-for configuration in Debug Release; do
-  xcodebuild -project Husk.xcodeproj -scheme Husk -configuration "$configuration" \
-    -derivedDataPath "${TMPDIR:-/tmp}/husk-verification" CODE_SIGNING_ALLOWED=NO build
-done
+xcodebuild -project Husk.xcodeproj -scheme Husk -configuration Debug \
+  -derivedDataPath "${TMPDIR:-/tmp}/husk-verification" CODE_SIGNING_ALLOWED=NO build
+xcodebuild -project Husk.xcodeproj -scheme Husk -configuration Release \
+  -derivedDataPath "${TMPDIR:-/tmp}/husk-verification" CODE_SIGNING_ALLOWED=NO \
+  'ARCHS=arm64 x86_64' ONLY_ACTIVE_ARCH=NO build
 git diff --check
 git diff --cached --check

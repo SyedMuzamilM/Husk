@@ -1,6 +1,6 @@
 # Audit resolution, 2026-10-11
 
-Application repairs are committed as `8139214`.
+Application repairs start at `8139214`; the subsequent memory follow-up bounds temporary Foundation object lifetime.
 
 The original audit remains a record of the pre-fix code. This ledger describes the resulting implementation and what still needs verification. "Implemented" does not mean certified safe for public distribution.
 
@@ -20,7 +20,7 @@ The original audit remains a record of the pre-fix code. This ledger describes t
 | F12 duplicate accounting | Canonical exact/nested target dedup and unique plan identities | Cross-target hardlinks/APFS shared blocks prevent a guarantee of uniquely freed bytes. |
 | F13 misleading disk totals | Measure eligible children before top-K, include hidden/package contents, independently measure parent, show Other/partial/unavailable and issues | Per-child shared blocks can exceed independent parent totals. Listing time budget can leave unavailable children. |
 | F14 sizing semantics/deadlines | One native metadata contract; no du fallback; allocated sizes, explicit logical fallback when unavailable; cooperative 20s/1M traversal and 60s listing budgets | A blocked kernel or filesystem call can exceed the cooperative budget. Need slow/network-volume trials. |
-| F15 blocking task bursts | Shared four-worker BlockingIO queue and bounded child fan-out | Some small metadata/identity calls remain outside that queue. Real peak memory at 1M entries is not measured. |
+| F15 blocking task bursts | Shared four-worker BlockingIO queue, bounded child fan-out, and per-entry autorelease pools | Some small metadata/identity calls remain outside that queue. Real peak memory at 1M entries is not measured. |
 | F16 Analyze main-thread Trash | All UI mutation goes through the shared actor and detached worker | Native Finder Trash calls may themselves block. |
 | F17 hidden project caches | Hidden discovery enabled; .git/dependency/environment descent excluded; explicit depth/visit/hit-limit issues | Project cache deletion remains disabled. |
 | F18 live owners | Known bundle IDs checked during planning and again before each move; project/model/VM cleanup disabled where unverified | Arbitrary/unknown app and CLI activity is not comprehensively attributed. General active-use detection remains open. |
@@ -38,7 +38,7 @@ Environment: Apple Silicon, macOS 27.0 build 26A428, Xcode 27.0 build 27A5218g, 
 
 - Swift package regression suite passes. See Tests/HuskCoreTests for policy, removal gate/replay, stale identity, symlink swap, exclusion overlap, largest/hidden/package sizes, hardlinks, discovery, command supervision/cancellation, host rights, descriptor reuse, and view-model lifetime fixtures.
 - The Trash mover is injected for mutation tests. Existing user data was never sent to Trash by verification.
-- Debug and Release builds pass with signing disabled and Swift 6 mode. Remaining Xcode note: AppIntents metadata extraction is skipped because this app has no AppIntents dependency.
+- Debug and Release builds pass with signing disabled and Swift 6 mode. Remaining Xcode note: AppIntents metadata extraction is skipped because this app has no AppIntents dependency. A universal Release build also succeeds for arm64 and x86_64.
 - Thread Sanitizer suite result is recorded in VERIFICATION.md. Sanitizer coverage is the service fixtures, not a full UI workload.
 - scripts/verify.sh and scripts/release.sh pass shell syntax checking. Release signing/notarization and remote CI are not executed.
 - App launch produced a visible app window. The host could not capture its window image, so visual/VoiceOver verification is not claimed.
