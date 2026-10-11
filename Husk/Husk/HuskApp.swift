@@ -7,6 +7,7 @@ import SwiftUI
 
 @main
 struct HuskApp: App {
+    @FocusedValue(\.huskScanAction) private var scanAction
     var body: some Scene {
         WindowGroup {
             ContentView()
@@ -21,9 +22,10 @@ struct HuskApp: App {
             CommandGroup(replacing: .newItem) {}
             CommandMenu("Husk") {
                 Button("Scan Clean Targets") {
-                    NotificationCenter.default.post(name: .huskStartCleanScan, object: nil)
+                    scanAction?()
                 }
                 .keyboardShortcut("r", modifiers: [.command])
+                .disabled(scanAction == nil)
             }
         }
 
@@ -35,16 +37,24 @@ struct HuskApp: App {
 
 private struct SettingsPane: View {
     @State private var permissions = PermissionService()
+    @AppStorage("husk.appearance") private var appearance = "system"
 
     var body: some View {
         SettingsView()
             .environment(permissions)
-            .frame(width: 480, height: 440)
-            .preferredColorScheme(.dark)
+            .frame(width: 600, height: 580)
+            .preferredColorScheme(appearance == "dark" ? .dark : appearance == "light" ? .light : nil)
             .task { permissions.refresh() }
     }
 }
 
-extension Notification.Name {
-    static let huskStartCleanScan = Notification.Name("huskStartCleanScan")
+private struct HuskScanActionKey: FocusedValueKey {
+    typealias Value = () -> Void
+}
+
+extension FocusedValues {
+    var huskScanAction: (() -> Void)? {
+        get { self[HuskScanActionKey.self] }
+        set { self[HuskScanActionKey.self] = newValue }
+    }
 }

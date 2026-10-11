@@ -6,6 +6,9 @@
 import SwiftUI
 
 struct ContentView: View {
+    @AppStorage("husk.appearance") private var appearance = "system"
+    @Environment(\.scenePhase) private var scenePhase
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @AppStorage("husk.hasCompletedOnboarding") private var hasCompletedOnboarding = false
 
     @State private var section: AppSection = .clean
@@ -22,7 +25,7 @@ struct ContentView: View {
                 mainShell
             } else {
                 OnboardingView {
-                    withAnimation(.easeInOut(duration: 0.25)) {
+                    withAnimation(reduceMotion ? nil : .easeInOut(duration: 0.25)) {
                         hasCompletedOnboarding = true
                     }
                 }
@@ -30,10 +33,17 @@ struct ContentView: View {
             }
         }
         .frame(minWidth: HuskTheme.minWindowWidth, minHeight: HuskTheme.minWindowHeight)
-        .preferredColorScheme(.dark)
+        .preferredColorScheme(appearance == "dark" ? .dark : appearance == "light" ? .light : nil)
         // Hidden title bar: keep layout clear of traffic lights.
         .ignoresSafeArea(edges: .top)
         .environment(permissions)
+        .focusedSceneValue(\.huskScanAction, { section = .clean; if !cleanModel.isBusy { cleanModel.startScan() } })
+        .onChange(of: scenePhase) { _, phase in
+            if phase == .active {
+                permissions.refresh()
+                if section == .status { statusModel.start() }
+            } else { statusModel.stop() }
+        }
         .task {
             refreshFreeSpace()
             permissions.refresh()
@@ -94,8 +104,7 @@ struct ContentView: View {
             .volumeAvailableCapacityForImportantUsageKey,
             .volumeAvailableCapacityKey
         ]) {
-            let free = values.volumeAvailableCapacityForImportantUsage
-                ?? Int64(values.volumeAvailableCapacity ?? 0)
+            let free = Int64(values.volumeAvailableCapacity ?? 0)
             freeSpaceText = ByteFormat.string(for: free)
         } else {
             freeSpaceText = "Unknown"

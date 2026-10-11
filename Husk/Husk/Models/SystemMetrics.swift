@@ -7,6 +7,9 @@ import Foundation
 
 struct SystemSnapshot: Sendable, Equatable {
     var timestamp: Date = Date()
+    var cpuAvailable = false
+    var memoryAvailable = false
+    var diskAvailable = false
     var cpuPercent: Double = 0
     var memoryUsedBytes: UInt64 = 0
     var memoryTotalBytes: UInt64 = 0
@@ -15,6 +18,9 @@ struct SystemSnapshot: Sendable, Equatable {
     var memoryCompressedBytes: UInt64 = 0
     var diskFreeBytes: Int64 = 0
     var diskTotalBytes: Int64 = 0
+    var diskImportantUsageBytes: Int64?
+    var memoryPressure = "Unknown"
+    var swapUsedBytes: UInt64?
     var processCount: Int = 0
     var loadAverage1: Double = 0
     var thermalStateDescription: String = "Nominal"
@@ -38,8 +44,10 @@ struct ProcessInfoRow: Identifiable, Sendable, Equatable, Hashable {
     let path: String?
     let cpuPercent: Double
     let memoryBytes: UInt64
-    let threadCount: Int32
+    let threadCount: Int32?
     let isOwnedByUser: Bool
+    var identity: ProcessIdentity? = nil
+    var canTerminate: Bool { identity?.canTerminate == true }
 
     var plainReason: String {
         if cpuPercent >= 50 {
@@ -54,10 +62,10 @@ struct ProcessInfoRow: Identifiable, Sendable, Equatable, Hashable {
         if memoryBytes >= 400_000_000 {
             return "Notable memory use"
         }
-        if threadCount > 40 {
+        if let threadCount, threadCount > 40 {
             return "Many threads"
         }
-        return "Running normally"
+        return "Low CPU/RSS in this sample"
     }
 }
 
@@ -95,4 +103,7 @@ struct CacheDetailReport: Sendable {
     let modified: Date?
     let topEntries: [CacheBreakdownEntry]
     let scannedAt: Date
+    var completeness: ScanCompleteness = .complete
+    var omittedBytes: Int64 = 0
+    var issues: [OperationIssue] = []
 }

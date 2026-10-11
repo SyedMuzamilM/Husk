@@ -40,7 +40,7 @@ struct TreemapView: View {
                             VStack(alignment: .leading, spacing: 2) {
                                 Text(rect.name)
                                     .font(.system(size: 11, weight: .semibold))
-                                    .foregroundStyle(Color.huskText.opacity(0.9))
+                                    .foregroundStyle(Color.white.opacity(0.9))
                                     .lineLimit(1)
                                 Text(ByteFormat.string(for: rect.byteCount))
                                     .font(.system(size: 10, design: .monospaced))
@@ -58,6 +58,10 @@ struct TreemapView: View {
                         if rect.isDirectory { onOpen(rect) }
                     }
                     .onTapGesture(count: 1) { onSelect(rect) }
+                    .accessibilityElement(children: .ignore)
+                    .accessibilityLabel(rect.name + ", " + ByteFormat.string(for: rect.byteCount))
+                    .accessibilityAction(named: "Select") { onSelect(rect) }
+                    .accessibilityAction(named: "Open") { if rect.isDirectory { onOpen(rect) } }
                     .help("\(rect.name)\n\(rect.path)\n\(ByteFormat.string(for: rect.byteCount))")
                     .contextMenu {
                         Button("Reveal in Finder") {

@@ -75,6 +75,10 @@ struct CacheDetailPanel: View {
                 .buttonStyle(.plain)
                 .fontWeight(.semibold)
                 .foregroundStyle(Color.huskPrimary)
+                .disabled(!item.safety.isSelectable)
+                Button("Exclude") {
+                    UserDefaults.standard.set(ScanPreferences.excludedPaths + [item.path], forKey: "husk.excludedPaths")
+                }
             }
             .padding(14)
         }
@@ -103,7 +107,9 @@ struct CacheDetailPanel: View {
 
     private func breakdown(_ report: CacheDetailReport) -> some View {
         VStack(alignment: .leading, spacing: 10) {
-            Text("LARGEST SUB-FOLDERS")
+            Text("Size " + report.completeness.rawValue + " · Other: " + ByteFormat.string(for: report.omittedBytes)).font(.callout)
+            ForEach(report.issues) { Text($0.message).font(.caption).foregroundStyle(.orange) }
+            Text("LARGEST CONTENTS")
                 .font(.system(size: 10, weight: .bold))
                 .tracking(0.8)
                 .foregroundStyle(Color.huskTextMuted)
@@ -113,7 +119,7 @@ struct CacheDetailPanel: View {
                     .font(.caption)
                     .foregroundStyle(Color.huskTextMuted)
             } else {
-                ForEach(report.topEntries.prefix(12)) { entry in
+                ForEach(report.topEntries) { entry in
                     VStack(alignment: .leading, spacing: 4) {
                         HStack {
                             Text(entry.name)

@@ -5,13 +5,17 @@
 
 import Foundation
 
-final class DiskNode: Identifiable, @unchecked Sendable {
+struct DiskNode: Identifiable, Sendable {
     let id: UUID
     let name: String
     let path: String
     let isDirectory: Bool
-    private(set) var byteCount: Int64
-    private(set) var children: [DiskNode]
+    let completeness: ScanCompleteness
+    let omittedCount: Int
+    let omittedBytes: Int64
+    let issues: [OperationIssue]
+    let byteCount: Int64
+    let children: [DiskNode]
 
     init(
         id: UUID = UUID(),
@@ -19,7 +23,9 @@ final class DiskNode: Identifiable, @unchecked Sendable {
         path: String,
         isDirectory: Bool,
         byteCount: Int64 = 0,
-        children: [DiskNode] = []
+        children: [DiskNode] = [],
+        completeness: ScanCompleteness = .complete,
+        omittedCount: Int = 0, omittedBytes: Int64 = 0, issues: [OperationIssue] = []
     ) {
         self.id = id
         self.name = name
@@ -27,6 +33,10 @@ final class DiskNode: Identifiable, @unchecked Sendable {
         self.isDirectory = isDirectory
         self.byteCount = byteCount
         self.children = children
+        self.completeness = completeness
+        self.omittedCount = omittedCount
+        self.omittedBytes = omittedBytes
+        self.issues = issues
     }
 
     var url: URL { URL(fileURLWithPath: path) }
@@ -40,20 +50,7 @@ final class DiskNode: Identifiable, @unchecked Sendable {
         }
     }
 
-    func addChild(_ child: DiskNode) {
-        children.append(child)
-        // Keep root total as sum of children for treemap share.
-        byteCount += child.byteCount
-    }
 
-    func setByteCount(_ value: Int64) {
-        byteCount = value
-    }
-
-    func finalizeSizeFromChildren() {
-        guard isDirectory else { return }
-        byteCount = children.reduce(0) { $0 + $1.byteCount }
-    }
 }
 
 struct TreemapRect: Identifiable, Equatable, Sendable {

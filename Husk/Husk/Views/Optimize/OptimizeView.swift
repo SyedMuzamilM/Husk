@@ -13,10 +13,10 @@ struct OptimizeView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             VStack(alignment: .leading, spacing: 4) {
-                Text("Optimize")
+                Text("Maintenance")
                     .font(.system(size: 20, weight: .semibold))
                     .foregroundStyle(Color.huskText)
-                Text("Safe maintenance only — no placebo RAM liberators.")
+                Text("Troubleshoot file previews. Run only when previews are stale.")
                     .font(.system(size: 12))
                     .foregroundStyle(Color.huskTextMuted)
             }
@@ -26,6 +26,7 @@ struct OptimizeView: View {
 
             ScrollView {
                 VStack(spacing: 10) {
+                    Text("macOS manages memory automatically. Clearing caches can make the next launch slower. Husk does not purge RAM or run privileged DNS commands.").font(.callout).foregroundStyle(.secondary)
                     ForEach(OptimizeService.tasks) { task in
                         HStack(alignment: .top, spacing: 14) {
                             Image(systemName: task.systemImage)

@@ -12,8 +12,18 @@ final class CleanViewModel {
     var categories: [CleanCategory] = []
     var selectedIDs: Set<UUID> = []
     var lastResult: CleanScanResult?
+    var removalPlan: RemovalPlan?
+    var removalResult: TrashResult?
+    var removalError: String?
+    private var detailGeneration = UUID()
+    private var generation = UUID()
     var searchText: String = ""
     var expandedCategories: Set<String> = []
+
+    /// Current filter group applied to the scanned items list.
+    var selectedFilter: CleanFilter = .all
+    /// Current sort order applied to the scanned items list.
+    var sortOption: CleanSortOption = .size
 
     /// Focused item for the detail inspector.
     var inspectedItem: CleanItem?
@@ -25,17 +35,55 @@ final class CleanViewModel {
     private let scanner = CleanScanner()
     private let detailService = CacheDetailService()
 
-    var filteredCategories: [CleanCategory] {
+    /// Flat list of items matching the search query and group filter, sorted by the selected sort option.
+    var filteredItems: [CleanItem] {
         let q = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !q.isEmpty else { return categories }
-        return categories.compactMap { cat in
-            let items = cat.items.filter {
+        var items = categories.flatMap(\.items)
+
+        // 1. Apply search text query matching name, path, or category.
+        if !q.isEmpty {
+            items = items.filter {
                 $0.name.localizedCaseInsensitiveContains(q)
                     || $0.path.localizedCaseInsensitiveContains(q)
+                    || $0.categoryName.localizedCaseInsensitiveContains(q)
             }
-            guard !items.isEmpty else { return nil }
-            return CleanCategory(id: cat.id, name: cat.name, systemImage: cat.systemImage, items: items)
         }
+
+        // 2. Apply high-level category group filters.
+        switch selectedFilter {
+        case .all:
+            break
+        case .dev:
+            // Match developer-centric caches and artifacts.
+            items = items.filter { ["developer", "package-managers", "project-artifacts", "ide"].contains($0.categoryID) }
+        case .ai:
+            // Match local AI models and coding agents.
+            items = items.filter { ["ai-agents", "local-ai"].contains($0.categoryID) }
+        case .system:
+            // Match system-level caches, logs, browser files, and Trash.
+            items = items.filter { ["user-caches", "browsers", "logs", "trash"].contains($0.categoryID) }
+        }
+
+        // 3. Apply sorting options.
+        switch sortOption {
+        case .size:
+            // Default and primary sort: show the largest items on top.
+            items.sort { $0.byteCount > $1.byteCount }
+        case .safety:
+            // Sort by risk profile (safe first), then by size.
+            items.sort {
+                if $0.safety != $1.safety { return $0.safety < $1.safety }
+                return $0.byteCount > $1.byteCount
+            }
+        case .category:
+            // Sort alphabetically by category name, then by size.
+            items.sort {
+                if $0.categoryName != $1.categoryName { return $0.categoryName < $1.categoryName }
+                return $0.byteCount > $1.byteCount
+            }
+        }
+
+        return items
     }
 
     var selectedItems: [CleanItem] {
@@ -65,29 +113,33 @@ final class CleanViewModel {
     }
 
     func startScan() {
+        guard !isBusy || isScanning else { return }
         scanTask?.cancel()
-        Task { await scanner.cancel() }
-
+        let run = UUID()
+        generation = run
+        clearInspection()
+        removalPlan = nil
+        phase = .scanning(CleanScanProgress(fraction: 0, currentPath: "Starting…", itemsFound: 0, bytesFound: 0))
         scanTask = Task {
-            phase = .scanning(
-                CleanScanProgress(fraction: 0, currentPath: "Starting…", itemsFound: 0, bytesFound: 0)
-            )
             selectedIDs = []
-            categories = []
-            await scanner.reset()
+            selectedFilter = .all
+            sortOption = .size
 
-            // Throttle UI progress updates
+            // Throttle UI progress updates to avoid rapid main thread redraws.
             let lastEmit = ProgressThrottle(interval: 0.12)
 
             do {
-                let result = try await scanner.scan { [weak self] progress in
-                    guard let self else { return }
-                    Task { @MainActor in
+                let scannerService = scanner
+                let model = self
+                let result = try await scannerService.scan { [weak model] progress in
+                    Task { @MainActor [weak model] in
+                        guard let self = model else { return }
                         if lastEmit.shouldEmit(force: progress.fraction >= 1) {
-                            self.phase = .scanning(progress)
+                            if self.generation == run, self.isScanning { self.phase = .scanning(progress) }
                         }
                     }
                 }
+                guard generation == run else { return }
                 guard !Task.isCancelled else {
                     phase = categories.isEmpty ? .idle : .ready
                     return
@@ -98,15 +150,18 @@ final class CleanViewModel {
                 selectedIDs = []
                 phase = .ready
             } catch is CancellationError {
+                guard generation == run else { return }
                 phase = categories.isEmpty ? .idle : .ready
             } catch {
+                guard generation == run else { return }
                 phase = .failed(error.localizedDescription)
             }
         }
     }
 
     func cancelScan() {
-        Task { await scanner.cancel() }
+        generation = UUID()
+
         scanTask?.cancel()
         scanTask = nil
         phase = categories.isEmpty ? .idle : .ready
@@ -135,8 +190,9 @@ final class CleanViewModel {
         }
     }
 
+    /// Selects all safe items within the currently filtered and searched list.
     func selectAllSafe() {
-        for item in categories.flatMap(\.items) where item.safety == .safe {
+        for item in filteredItems where item.safety == .safe {
             selectedIDs.insert(item.id)
         }
     }
@@ -149,56 +205,60 @@ final class CleanViewModel {
         inspectedItem = item
         cacheDetail = nil
         detailTask?.cancel()
+        let run = UUID()
+        detailGeneration = run
         detailTask = Task {
             isLoadingDetail = true
-            defer { isLoadingDetail = false }
+            defer { if detailGeneration == run { isLoadingDetail = false } }
             let report = await detailService.detail(for: item.path)
             guard !Task.isCancelled else { return }
             // Only apply if still inspecting the same item
-            if inspectedItem?.id == item.id {
+            if detailGeneration == run, inspectedItem?.id == item.id {
                 cacheDetail = report
             }
         }
     }
 
     func clearInspection() {
+        detailGeneration = UUID()
         detailTask?.cancel()
         inspectedItem = nil
         cacheDetail = nil
         isLoadingDetail = false
     }
 
-    func moveSelectionToTrash() async {
-        let items = selectedItems
-        guard !items.isEmpty else { return }
+    func prepareRemoval() async {
+        removalError = nil
+        guard !isBusy else { return }
+        let run = generation
+        let plan = await RemovalService.shared.prepare(selectedItems.map {
+            RemovalCandidate(path: $0.path, bytes: $0.byteCount, safety: $0.safety, reason: $0.reason, ownerBundleID: $0.ownerBundleID)
+        }, title: "Review cleanup")
+        guard generation == run, !isBusy else { return }
+        removalPlan = plan
+    }
+
+    func moveSelectionToTrash(_ plan: RemovalPlan) async {
+        guard !isBusy else { return }
         phase = .trashing
-
-        let paths = items.map(\.path)
-        // Paths can theoretically collide — never use uniqueKeysWithValues.
-        let lookup = DictUtil.uniquingLast(items.map { ($0.path, $0.byteCount) })
-
         do {
-            let result = try await Task.detached(priority: .userInitiated) {
-                try TrashService.moveToTrash(paths: paths, byteLookup: lookup)
-            }.value
-
+            let result = try await RemovalService.shared.execute(plan)
+            removalResult = result
             let success = Set(result.successPaths)
             categories = categories.compactMap { cat in
                 let remaining = cat.items.filter { !success.contains($0.path) }
-                guard !remaining.isEmpty else { return nil }
-                return CleanCategory(
-                    id: cat.id,
-                    name: cat.name,
-                    systemImage: cat.systemImage,
-                    items: remaining
-                )
+                return remaining.isEmpty ? nil : CleanCategory(id: cat.id, name: cat.name, systemImage: cat.systemImage, items: remaining)
             }
-            selectedIDs = []
+            selectedIDs.formIntersection(Set(categories.flatMap(\.items).map(\.id)))
+            clearInspection()
+            lastResult = nil
             phase = .finished(trashedBytes: result.totalBytes, itemCount: result.successCount)
         } catch {
-            phase = .failed(error.localizedDescription)
+            removalError = error.localizedDescription
+            phase = categories.isEmpty ? .idle : .ready
         }
     }
+
 }
 
 /// Simple main-actor-friendly throttle for progress UI.
@@ -221,4 +281,32 @@ final class ProgressThrottle: @unchecked Sendable {
         }
         return false
     }
+}
+
+/// High-level filter groups for the cache list.
+enum CleanFilter: String, CaseIterable, Identifiable, Sendable {
+    case all = "All"
+    case dev = "Dev Tools"
+    case ai = "AI Tools"
+    case system = "System & OS"
+
+    var id: String { rawValue }
+
+    var systemImage: String {
+        switch self {
+        case .all: return "square.grid.2x2"
+        case .dev: return "hammer"
+        case .ai: return "cpu"
+        case .system: return "desktopcomputer"
+        }
+    }
+}
+
+/// Sort options for the cache list.
+enum CleanSortOption: String, CaseIterable, Identifiable, Sendable {
+    case size = "Size"
+    case safety = "Safety"
+    case category = "Category"
+
+    var id: String { rawValue }
 }

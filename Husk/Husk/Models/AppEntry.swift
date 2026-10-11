@@ -14,6 +14,7 @@ struct AppEntry: Identifiable, Hashable, Sendable {
     let version: String?
     let byteCount: Int64
     let isFromSystem: Bool
+    var completeness: ScanCompleteness = .unavailable
 
     var url: URL { URL(fileURLWithPath: path) }
 

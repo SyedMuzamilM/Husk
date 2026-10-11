@@ -51,14 +51,21 @@ final class StatusViewModel {
         guard loopTask == nil else { return }
         isSampling = true
         statusLine = "Sampling…"
+        let sampler = service
         loopTask = Task { [weak self] in
-            await self?.tick()
-            while let self, !Task.isCancelled {
+            while !Task.isCancelled {
+                do {
+                    let (snap, procs) = try await sampler.sample()
+                    guard !Task.isCancelled else { return }
+                    self?.apply(snap, processes: procs)
+                } catch is CancellationError { return }
+                catch { self?.lastError = error.localizedDescription }
+                // No strong reference to the model spans sleep or sampling.
                 try? await Task.sleep(for: .milliseconds(1500))
-                if Task.isCancelled { break }
-                await self.tick()
+                if self == nil { return }
             }
         }
+
     }
 
     func stop() {
@@ -68,19 +75,21 @@ final class StatusViewModel {
         statusLine = "Paused"
     }
 
-    private func tick() async {
-        let (snap, procs) = await service.sample(topProcessLimit: 40)
-        guard !Task.isCancelled else { return }
+    isolated deinit { loopTask?.cancel() }
+
+    private func apply(_ snap: SystemSnapshot, processes: [ProcessInfoRow]) {
         snapshot = snap
-        processes = procs
+        self.processes = processes
+        lastError = nil
         statusLine = "Updated \(snap.timestamp.formatted(date: .omitted, time: .standard))"
     }
 
-    func terminate(pid: Int32, force: Bool) {
-        let ok = SystemMetricsService.terminate(pid: pid, force: force)
-        lastError = ok ? nil : (force ? "Could not force quit PID \(pid)" : "Could not quit PID \(pid)")
-        if ok {
-            Task { await tick() }
-        }
+    func terminate(_ row: ProcessInfoRow, force: Bool) {
+        do {
+            guard let identity = row.identity else { throw RemovalError.changed("Identity unavailable. Refresh and try again.") }
+            try ProcessControl.terminate(identity, force: force)
+            lastError = nil
+            statusLine = "Quit request sent to PID \(row.pid). Waiting for the next sample."
+        } catch { lastError = error.localizedDescription }
     }
 }

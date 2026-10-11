@@ -3,6 +3,7 @@
 //  Husk
 //
 
+import Darwin
 import Foundation
 
 enum PathSafety: Sendable {
@@ -25,40 +26,105 @@ enum PathSafety: Sendable {
         "Library/Messages",
         "Library/Accounts",
         "Library/Cookies",
+        // Browser session/cookie/profile data in Application Support is strictly protected
+        "Library/Application Support/Google/Chrome",
+        "Library/Application Support/Firefox",
+        "Library/Application Support/BraveSoftware",
+        "Library/Application Support/com.microsoft.edgemac",
+        "Library/Application Support/Company.TheBrowserCompany.Arc",
+        "Library/Application Support/Safari",
         ".ssh",
         ".gnupg",
         ".config/gcloud"
     ]
 
     static func isProtected(_ path: String) -> Bool {
-        let standardized = (path as NSString).standardizingPath
+        guard path.hasPrefix("/"), !path.contains("\0") else { return true }
+        let standardized = canonicalPath(path)
 
         if standardized == "/" || standardized.isEmpty {
             return true
         }
 
         for prefix in absoluteDenyPrefixes {
-            if standardized == prefix || standardized.hasPrefix(prefix + "/") {
+            if overlaps(standardized, prefix) {
                 return true
             }
         }
 
-        let home = NSHomeDirectory()
-        if standardized == home {
+        let home = canonicalPath(NSHomeDirectory())
+        if overlaps(standardized, home) && !isDescendant(standardized, of: home) {
             return true
         }
 
         for suffix in homeDenySuffixes {
             let deny = (home as NSString).appendingPathComponent(suffix)
-            if standardized == deny || standardized.hasPrefix(deny + "/") {
+            if overlaps(standardized, deny) {
                 return true
             }
         }
 
-        if standardized.contains("/Husk.app") {
+        let additional = [".Trash", ".aws", ".kube", ".azure", ".codex/auth.json",
+                          ".claude", "Library/CloudStorage", "Library/Mobile Documents"]
+        if additional.contains(where: { overlaps(standardized, home + "/" + $0) }) {
             return true
         }
 
+        let bundle = Bundle.main.bundleURL
+        if bundle.pathExtension == "app", overlaps(standardized, canonicalPath(bundle.path)) { return true }
+        // User and system directory roots are never removal candidates.
+        let broadRoots = ["/Applications", "/Library", "/Volumes", home + "/Applications",
+                          home + "/Documents", home + "/Downloads", home + "/Desktop",
+                          home + "/Library/Caches", home + "/Library/Logs",
+                          home + "/Library/Containers", home + "/Library/Group Containers",
+                          home + "/Library/Application Support", home + "/Library/Preferences"]
+        if broadRoots.contains(where: { canonicalPath($0).lowercased() == standardized.lowercased() }) { return true }
+
+        return false
+    }
+
+    static func canonicalPath(_ path: String) -> String {
+        if let resolved = realpath(path, nil) {
+            defer { free(resolved) }
+            return String(cString: resolved)
+        }
+        // Resolve the nearest existing ancestor for paths not created yet.
+        let absolute = URL(fileURLWithPath: path).standardizedFileURL.path
+        var parent = absolute
+        var suffix: [String] = []
+        while parent != "/" {
+            suffix.insert((parent as NSString).lastPathComponent, at: 0)
+            parent = (parent as NSString).deletingLastPathComponent
+            if let resolved = realpath(parent, nil) {
+                defer { free(resolved) }
+                return suffix.reduce(String(cString: resolved)) { ($0 as NSString).appendingPathComponent($1) }
+            }
+        }
+        return absolute
+    }
+
+    static func isDescendant(_ path: String, of parent: String) -> Bool {
+        let base = parent == "/" ? "" : parent.hasSuffix("/") ? String(parent.dropLast()) : parent
+        return path.lowercased().hasPrefix(base.lowercased() + "/")
+    }
+
+    private static func overlaps(_ path: String, _ protected: String) -> Bool {
+        let a = canonicalPath(path).lowercased()
+        let b = canonicalPath(protected).lowercased()
+        return a == b || isDescendant(a, of: b) || isDescendant(b, of: a)
+    }
+
+    /// macOS exposes /var and /tmp as system aliases. Other symlink components
+    /// are rejected at the mutation boundary, including a symlink leaf.
+    static func hasUnsafeSymlink(_ path: String) -> Bool {
+        let components = URL(fileURLWithPath: path).standardizedFileURL.pathComponents
+        var current = ""
+        for component in components.dropFirst() {
+            current += "/" + component
+            if let attributes = try? FileManager.default.attributesOfItem(atPath: current),
+               attributes[.type] as? FileAttributeType == .typeSymbolicLink,
+               !["/var", "/tmp", "/etc"].contains(current) { return true }
+        }
         return false
     }
 
@@ -72,6 +138,15 @@ enum PathSafety: Sendable {
         return false
     }
 
+    private static let readDenyPaths = (absoluteDenyPrefixes + (homeDenySuffixes + [".aws", ".azure", ".kube", ".codex/auth.json", ".claude", "Library/CloudStorage", "Library/Mobile Documents"]).map { NSHomeDirectory() + "/" + $0 }).map { canonicalPath($0).lowercased() }
+
+    static func isSensitiveForReading(_ path: String) -> Bool {
+        let normalized = path.lowercased()
+        return readDenyPaths.contains { deny in
+            return normalized == deny || isDescendant(normalized, of: deny)
+        }
+    }
+
     static func classifyCachePath(_ path: String) -> (SafetyLabel, String) {
         if isProtected(path) {
             return (.protected, "Protected system or sensitive path")
@@ -81,14 +156,14 @@ enum PathSafety: Sendable {
         let name = (path as NSString).lastPathComponent.lowercased()
 
         if lower.contains("/caches/") || name == "cache" || name.hasSuffix(".cache") {
-            if lower.contains("webkit") || lower.contains("chromium") || lower.contains("com.apple.safari") {
+            if ["com.apple.safari", "com.apple.webkit"].contains(name) {
                 return (.safe, "Browser cache — recreated automatically")
             }
-            return (.safe, "Application cache — usually regenerable")
+            return (.review, "Unverified application cache. May contain offline data; review its contents.")
         }
 
         if lower.contains("/logs/") || name.hasSuffix(".log") {
-            return (.safe, "Log files — safe to remove")
+            return (.review, "Logs may contain useful diagnostics or history. Review before removal.")
         }
 
         if lower.contains("deriveddata") {

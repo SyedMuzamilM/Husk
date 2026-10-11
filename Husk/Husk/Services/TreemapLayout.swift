@@ -107,7 +107,7 @@ enum TreemapLayout {
         colorIndex: Int
     ) -> TreemapRect {
         TreemapRect(
-            id: UUID(),
+            id: node.id,
             nodeID: node.id,
             name: node.name,
             path: node.path,

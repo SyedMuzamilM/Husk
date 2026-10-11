@@ -9,31 +9,27 @@ import SwiftUI
 struct CleanView: View {
     @Bindable var model: CleanViewModel
     @Environment(PermissionService.self) private var permissions
-    @State private var confirmTrash = false
+    @State private var inspectedID: UUID?
 
     var body: some View {
         VStack(spacing: 0) {
             topBar
+            if let error = model.removalError { Text(error).foregroundStyle(.orange).textSelection(.enabled).padding(.horizontal) }
+            if let issues = model.lastResult?.coverageIssues, !issues.isEmpty {
+                DisclosureGroup("Scan coverage: \(issues.count) issues") {
+                    ForEach(issues) { Text($0.path + " · " + $0.message).font(.caption).textSelection(.enabled) }
+                }.foregroundStyle(.orange).padding(.horizontal, HuskTheme.contentPadding)
+            }
             content
             if showsBottomBar {
                 bottomBar
             }
         }
-        .confirmationDialog(
-            "Move \(model.selectedItems.count) item(s) to Trash?",
-            isPresented: $confirmTrash,
-            titleVisibility: .visible
-        ) {
-            Button("Move \(ByteFormat.string(for: model.selectedBytes)) to Trash", role: .destructive) {
-                Task { await model.moveSelectionToTrash() }
-            }
-            Button("Cancel", role: .cancel) {}
-        } message: {
-            Text("Items go to Trash only — never permanently shredded.")
+        .sheet(item: $model.removalPlan) { plan in
+            RemovalReviewSheet(plan: plan) { frozen in Task { await model.moveSelectionToTrash(frozen) } }
         }
-        .onReceive(NotificationCenter.default.publisher(for: .huskStartCleanScan)) { _ in
-            if !model.isScanning { model.startScan() }
-        }
+        .sheet(item: $model.removalResult) { RemovalResultSheet(result: $0) }
+
     }
 
     private var showsBottomBar: Bool {
@@ -144,7 +140,7 @@ struct CleanView: View {
         default:
             if model.categories.isEmpty {
                 VStack(spacing: 12) {
-                    Text("No husk found. Nice.")
+                    Text("No items found in measured locations.")
                         .font(.title2.weight(.semibold))
                         .foregroundStyle(Color.huskText)
                     HuskPillButton(title: "Scan Again", systemImage: "arrow.clockwise") {
@@ -218,11 +214,11 @@ struct CleanView: View {
     // MARK: - Results (stitch-inspired split)
 
     private var resultsLayout: some View {
-        HStack(spacing: 12) {
+        HSplitView {
             categoryList
-                .frame(width: 280)
+                .frame(minWidth: 440, idealWidth: 510)
             detailPane
-                .frame(maxWidth: .infinity)
+                .frame(minWidth: 230, maxWidth: .infinity)
         }
         .padding(.horizontal, HuskTheme.contentPadding)
         .padding(.bottom, 8)
@@ -230,32 +226,120 @@ struct CleanView: View {
 
     private var categoryList: some View {
         VStack(spacing: 0) {
+            // 1. Search Bar: A subtle dark textfield for matching paths and names on-the-fly.
             HStack {
-                Text("CATEGORY")
-                    .font(.system(size: 10, weight: .bold))
-                    .tracking(0.8)
+                Image(systemName: "magnifyingglass")
+                    .font(.system(size: 11))
                     .foregroundStyle(Color.huskTextMuted)
-                Spacer()
-                Text("SIZE")
-                    .font(.system(size: 10, weight: .bold))
-                    .tracking(0.8)
-                    .foregroundStyle(Color.huskTextMuted)
+                TextField("Search caches, paths…", text: $model.searchText)
+                    .textFieldStyle(.plain)
+                    .font(.system(size: 12))
+                    .foregroundStyle(Color.huskText)
+                if !model.searchText.isEmpty {
+                    Button {
+                        model.searchText = ""
+                    } label: {
+                        Image(systemName: "xmark.circle.fill")
+                            .font(.system(size: 11))
+                            .foregroundStyle(Color.huskTextMuted)
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("Clear search")
+                }
             }
-            .padding(.horizontal, 14)
-            .padding(.vertical, 10)
+            .padding(.horizontal, 10)
+            .padding(.vertical, 6)
+            .background(RoundedRectangle(cornerRadius: 8).fill(Color.huskSurfaceHigh.opacity(0.6)))
+            .padding(.horizontal, 12)
+            .padding(.top, 12)
+            .padding(.bottom, 6)
+
+            // 2. Filter Chips: Horizontal pills representing different cache groups.
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 6) {
+                    ForEach(CleanFilter.allCases) { filter in
+                        Button {
+                            withAnimation(.easeOut(duration: 0.15)) {
+                                model.selectedFilter = filter
+                            }
+                        } label: {
+                            HStack(spacing: 4) {
+                                Image(systemName: filter.systemImage)
+                                    .font(.system(size: 9))
+                                Text(filter.rawValue)
+                                    .font(.system(size: 11, weight: .medium))
+                            }
+                            .padding(.horizontal, 10)
+                            .padding(.vertical, 5)
+                            .background(
+                                Capsule()
+                                    .fill(model.selectedFilter == filter ? Color.huskPrimary : Color.huskSurfaceHigh.opacity(0.8))
+                            )
+                            .foregroundStyle(model.selectedFilter == filter ? Color.huskOnPrimary : Color.huskTextSecondary)
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+                .padding(.horizontal, 12)
+                .padding(.bottom, 8)
+            }
 
             Divider().overlay(Color.huskBorder)
 
-            ScrollView {
-                LazyVStack(spacing: 2) {
-                    ForEach(model.filteredCategories) { category in
-                        ForEach(category.items) { item in
-                            categoryRow(item)
+            // 3. Header & Sort Options: Displays number of items and sort trigger.
+            HStack {
+                Text("\(model.filteredItems.count) ITEMS")
+                    .font(.system(size: 9, weight: .bold))
+                    .tracking(0.8)
+                    .foregroundStyle(Color.huskTextMuted)
+                Spacer()
+                Menu {
+                    Picker("Sort By", selection: $model.sortOption) {
+                        ForEach(CleanSortOption.allCases) { option in
+                            Text(option.rawValue).tag(option)
                         }
                     }
+                } label: {
+                    HStack(spacing: 3) {
+                        Text(model.sortOption.rawValue)
+                        Image(systemName: "arrow.up.and.down.text.left.to.right")
+                    }
+                    .font(.system(size: 9, weight: .semibold))
+                    .foregroundStyle(Color.huskTextSecondary)
                 }
-                .padding(8)
+                .menuStyle(.borderlessButton)
+                .fixedSize()
             }
+            .padding(.horizontal, 14)
+            .padding(.vertical, 8)
+
+            Divider().overlay(Color.huskBorder)
+
+            Table(model.filteredItems, selection: $inspectedID) {
+                TableColumn("Select") { item in
+                    Toggle("Select " + item.name, isOn: Binding(
+                        get: { model.selectedIDs.contains(item.id) },
+                        set: { _ in model.toggle(item) }
+                    )).labelsHidden().disabled(!item.safety.isSelectable)
+                }.width(45)
+                TableColumn("Item") { item in
+                    VStack(alignment: .leading) {
+                        Text(item.name).lineLimit(1)
+                        Text(item.categoryName).font(.caption).foregroundStyle(.secondary)
+                    }
+                }.width(min: 130, ideal: 190)
+                TableColumn("Size") { item in
+                    VStack(alignment: .trailing) {
+                        Text(ByteFormat.string(for: item.byteCount)).monospacedDigit()
+                        if item.completeness != .complete { Text(item.completeness.rawValue).font(.caption) }
+                    }
+                }.width(90)
+                TableColumn("Risk") { item in SafetyBadge(label: item.safety) }.width(80)
+            }
+            .onChange(of: inspectedID) { _, id in
+                if let item = model.filteredItems.first(where: { $0.id == id }) { model.inspect(item) }
+            }
+
         }
         .background(
             RoundedRectangle(cornerRadius: HuskTheme.cardRadius, style: .continuous)
@@ -265,50 +349,6 @@ struct CleanView: View {
                         .strokeBorder(Color.huskBorder)
                 )
         )
-    }
-
-    private func categoryRow(_ item: CleanItem) -> some View {
-        let selected = model.inspectedItem?.id == item.id
-        return Button {
-            model.inspect(item)
-        } label: {
-            HStack(spacing: 10) {
-                Button {
-                    model.toggle(item)
-                } label: {
-                    Image(systemName: model.selectedIDs.contains(item.id) ? "checkmark.circle.fill" : "circle")
-                        .foregroundStyle(model.selectedIDs.contains(item.id) ? Color.huskPrimary : Color.huskTextMuted)
-                }
-                .buttonStyle(.plain)
-                .disabled(!item.safety.isSelectable)
-
-                VStack(alignment: .leading, spacing: 3) {
-                    Text(item.name)
-                        .font(.system(size: 13, weight: .medium))
-                        .foregroundStyle(Color.huskText)
-                        .lineLimit(1)
-                    HStack(spacing: 6) {
-                        SafetyBadge(label: item.safety)
-                        Text(item.categoryName)
-                            .font(.system(size: 10))
-                            .foregroundStyle(Color.huskTextMuted)
-                            .lineLimit(1)
-                    }
-                }
-                Spacer(minLength: 4)
-                Text(ByteFormat.string(for: item.byteCount))
-                    .font(.system(size: 12, weight: .medium, design: .monospaced))
-                    .foregroundStyle(Color.huskPrimary)
-            }
-            .padding(.horizontal, 10)
-            .padding(.vertical, 10)
-            .background(
-                RoundedRectangle(cornerRadius: 10, style: .continuous)
-                    .fill(selected ? Color.huskPrimary.opacity(0.12) : Color.clear)
-            )
-            .contentShape(Rectangle())
-        }
-        .buttonStyle(.plain)
     }
 
     @ViewBuilder
@@ -383,7 +423,7 @@ struct CleanView: View {
                 systemImage: "trash",
                 prominent: true
             ) {
-                confirmTrash = true
+                Task { await model.prepareRemoval() }
             }
             .opacity(model.selectedItems.isEmpty ? 0.45 : 1)
             .disabled(model.selectedItems.isEmpty || model.isBusy)

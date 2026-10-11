@@ -1,83 +1,21 @@
-//
-//  DiskAnalyzer.swift
-//  Husk
-//
-
 import Foundation
 
 actor DiskAnalyzer {
-    private var cancelled = false
-
-    func cancel() { cancelled = true }
-    func reset() { cancelled = false }
-
-    /// Shallow concurrent size map for a root path (does not deep-walk twice).
-    func analyze(
-        rootPath: String,
-        progress: @Sendable @escaping (String) -> Void
-    ) async throws -> DiskNode {
-        cancelled = false
-        let rootURL = URL(fileURLWithPath: rootPath)
-        progress("Listing \(rootURL.lastPathComponent)…")
-
-        let root = DiskNode(
-            name: rootURL.lastPathComponent.isEmpty ? rootPath : rootURL.lastPathComponent,
-            path: rootPath,
-            isDirectory: true
-        )
-
-        let children = try await DirectorySizer.childSizes(
-            of: rootURL,
-            maxChildren: 36
-        ) { [cancelled] in
-            cancelled || Task.isCancelled
-        }
-
-        progress("Building map…")
-
-        for child in children {
-            try checkCancel()
-            root.addChild(
-                DiskNode(
-                    name: child.name,
-                    path: child.path,
-                    isDirectory: child.isDirectory,
-                    byteCount: child.bytes
-                )
-            )
-        }
-
-        return root
+    func analyze(rootPath: String, includeHidden: Bool = true,
+                 progress: @Sendable @escaping (String) -> Void) async throws -> DiskNode {
+        progress("Measuring all children…")
+        return try await expand(path: rootPath, includeHidden: includeHidden)
     }
 
-    /// Drill into a folder for more detail (one level, concurrent).
-    func expand(path: String) async throws -> DiskNode {
-        cancelled = false
-        let url = URL(fileURLWithPath: path)
-        let node = DiskNode(name: url.lastPathComponent, path: path, isDirectory: true)
-
-        let children = try await DirectorySizer.childSizes(
-            of: url,
-            maxChildren: 48
-        ) { [cancelled] in
-            cancelled || Task.isCancelled
+    func expand(path: String, includeHidden: Bool = true) async throws -> DiskNode {
+        let listing = try await DirectorySizer.listing(of: URL(fileURLWithPath: path), maxChildren: 100, includeHidden: includeHidden)
+        try Task.checkCancellation()
+        let children = listing.children.map {
+            DiskNode(name: $0.name, path: $0.path, isDirectory: $0.isDirectory, byteCount: $0.bytes,
+                     completeness: $0.measurement.status, issues: $0.measurement.issues)
         }
-
-        for child in children {
-            try checkCancel()
-            node.addChild(
-                DiskNode(
-                    name: child.name,
-                    path: child.path,
-                    isDirectory: child.isDirectory,
-                    byteCount: child.bytes
-                )
-            )
-        }
-        return node
-    }
-
-    private func checkCancel() throws {
-        if cancelled || Task.isCancelled { throw CancellationError() }
+        return DiskNode(name: URL(fileURLWithPath: path).lastPathComponent, path: path, isDirectory: true,
+                        byteCount: listing.total.bytes, children: children, completeness: listing.total.status,
+                        omittedCount: listing.omittedCount, omittedBytes: listing.omittedBytes, issues: listing.total.issues)
     }
 }

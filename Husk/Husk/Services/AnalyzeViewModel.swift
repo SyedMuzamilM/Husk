@@ -9,6 +9,10 @@ import Foundation
 @Observable
 @MainActor
 final class AnalyzeViewModel {
+    var removalPlan: RemovalPlan?
+    var removalResult: TrashResult?
+    var includeHidden = true
+    private var generation = UUID()
     var root: DiskNode?
     var pathStack: [DiskNode] = []
     var isLoading = false
@@ -38,22 +42,25 @@ final class AnalyzeViewModel {
         let target = path ?? selectedRootPath
         selectedRootPath = target
         task?.cancel()
-        Task { await analyzer.cancel() }
+        generation = UUID()
 
+        removalPlan = nil
+        let run = generation
         task = Task {
             isLoading = true
             errorMessage = nil
             statusText = "Scanning \(URL(fileURLWithPath: target).lastPathComponent)…"
             pathStack = []
-            root = nil
-            await analyzer.reset()
 
             do {
-                let node = try await analyzer.analyze(rootPath: target) { [weak self] p in
-                    Task { @MainActor in
-                        self?.statusText = p
+                let analyzerService = analyzer
+                let model = self
+                let node = try await analyzerService.analyze(rootPath: target, includeHidden: includeHidden) { [weak model] p in
+                    Task { @MainActor [weak model] in
+                        if model?.generation == run { model?.statusText = p }
                     }
                 }
+                guard generation == run else { return }
                 guard !Task.isCancelled else {
                     isLoading = false
                     statusText = "Cancelled"
@@ -63,9 +70,11 @@ final class AnalyzeViewModel {
                 statusText = "\(node.children.count) items · \(ByteFormat.string(for: node.byteCount))"
                 isLoading = false
             } catch is CancellationError {
+                guard generation == run else { return }
                 isLoading = false
                 statusText = "Cancelled"
             } catch {
+                guard generation == run else { return }
                 isLoading = false
                 errorMessage = error.localizedDescription
                 statusText = "Failed"
@@ -74,7 +83,7 @@ final class AnalyzeViewModel {
     }
 
     func cancel() {
-        Task { await analyzer.cancel() }
+        generation = UUID()
         task?.cancel()
         isLoading = false
         if root == nil {
@@ -85,16 +94,18 @@ final class AnalyzeViewModel {
     func drill(into node: DiskNode) {
         guard node.isDirectory else { return }
         task?.cancel()
-        Task { await analyzer.cancel() }
+        generation = UUID()
 
+        removalPlan = nil
+        let run = generation
         task = Task {
             isLoading = true
             statusText = "Opening \(node.name)…"
             errorMessage = nil
-            await analyzer.reset()
 
             do {
-                let expanded = try await analyzer.expand(path: node.path)
+                let expanded = try await analyzer.expand(path: node.path, includeHidden: includeHidden)
+                guard generation == run else { return }
                 guard !Task.isCancelled else {
                     isLoading = false
                     return
@@ -103,9 +114,11 @@ final class AnalyzeViewModel {
                 isLoading = false
                 statusText = "\(expanded.children.count) items · \(ByteFormat.string(for: expanded.byteCount))"
             } catch is CancellationError {
+                guard generation == run else { return }
                 isLoading = false
                 statusText = "Cancelled"
             } catch {
+                guard generation == run else { return }
                 if !node.children.isEmpty {
                     pathStack.append(node)
                     statusText = node.path
@@ -119,6 +132,7 @@ final class AnalyzeViewModel {
     }
 
     func goToBreadcrumb(index: Int) {
+        cancel()
         if index <= 0 {
             pathStack = []
             if let root {
@@ -139,22 +153,21 @@ final class AnalyzeViewModel {
         NSWorkspace.shared.activateFileViewerSelecting([URL(fileURLWithPath: path)])
     }
 
-    func trash(_ path: String) async -> Bool {
-        if PathSafety.isProtected(path) { return false }
+    func prepareRemoval(path: String, bytes: Int64) async {
+        let run = generation
+        let plan = await RemovalService.shared.prepare([
+            RemovalCandidate(path: path, bytes: bytes, safety: .caution,
+                reason: "User-selected storage. May contain irreplaceable personal data.", ownerBundleID: CleanScanner.ownerBundleID(for: path))
+        ], title: "Review storage removal")
+        guard generation == run else { return }
+        removalPlan = plan
+    }
+
+    func trash(_ plan: RemovalPlan) async {
         do {
-            _ = try TrashService.moveToTrash(paths: [path])
-            if let current, current.path != path {
-                scan(path: current.path)
-            } else if let parent = pathStack.dropLast().last {
-                pathStack.removeLast()
-                scan(path: parent.path)
-            } else {
-                scan(path: selectedRootPath)
-            }
-            return true
-        } catch {
-            errorMessage = error.localizedDescription
-            return false
-        }
+            let result = try await RemovalService.shared.execute(plan)
+            removalResult = result
+            if !result.successPaths.isEmpty { scan(path: current?.path ?? selectedRootPath) }
+        } catch { errorMessage = error.localizedDescription }
     }
 }

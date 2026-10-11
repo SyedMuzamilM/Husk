@@ -23,7 +23,7 @@ enum AppSection: String, CaseIterable, Identifiable, Hashable {
         case .analyze: "Analyze"
         case .apps: "Apps"
         case .status: "Status"
-        case .optimize: "Optimize"
+        case .optimize: "Maintenance"
         case .settings: "Settings"
         }
     }
@@ -42,6 +42,8 @@ enum AppSection: String, CaseIterable, Identifiable, Hashable {
 
 struct IconRail: View {
     @Binding var selection: AppSection
+    @AppStorage("husk.compactNavigation") private var compact = false
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     private let main: [AppSection] = [.clean, .analyze, .apps, .status, .optimize]
 
@@ -64,7 +66,7 @@ struct IconRail: View {
             railButton(.settings)
                 .padding(.bottom, 14)
         }
-        .frame(width: HuskTheme.railWidth)
+        .frame(width: compact ? HuskTheme.railWidth : 160)
         .background(
             Color.huskSurfaceLow.opacity(0.95)
                 .overlay(alignment: .trailing) {
@@ -78,19 +80,19 @@ struct IconRail: View {
     private func railButton(_ section: AppSection) -> some View {
         let active = selection == section
         return Button {
-            withAnimation(.easeOut(duration: 0.15)) {
+            withAnimation(reduceMotion ? nil : .easeOut(duration: 0.15)) {
                 selection = section
             }
         } label: {
-            Image(systemName: section.systemImage)
-                .font(.system(size: 16, weight: active ? .semibold : .regular))
-                .foregroundStyle(active ? Color.huskOnPrimary : Color.huskTextMuted)
-                .frame(width: 40, height: 40)
-                .background(
-                    Circle()
-                        .fill(active ? Color.huskPrimary : Color.clear)
-                )
-                .contentShape(Circle())
+            HStack(spacing: 12) {
+                Image(systemName: section.systemImage).frame(width: 24)
+                if !compact { Text(section.title).font(.callout.weight(active ? .semibold : .regular)) }
+            }
+            .foregroundStyle(active ? Color.huskOnPrimary : Color.huskTextSecondary)
+            .frame(width: compact ? 40 : 140, height: 40, alignment: compact ? .center : .leading)
+            .padding(.leading, compact ? 0 : 10)
+            .background(RoundedRectangle(cornerRadius: 12).fill(active ? Color.huskPrimary : Color.clear))
+
         }
         .buttonStyle(.plain)
         .help(section.title)

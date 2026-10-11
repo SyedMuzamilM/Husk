@@ -17,22 +17,10 @@ struct CleanTarget: Sendable {
 
 /// Concurrent, cancellable scanner for regenerable caches and developer artifacts.
 actor CleanScanner {
-    private let cancelFlag = CancelFlag()
-
-    func cancel() {
-        cancelFlag.cancel()
-    }
-
-    func reset() {
-        cancelFlag.reset()
-    }
-
     func scan(
         progress: @Sendable @escaping (CleanScanProgress) -> Void
     ) async throws -> CleanScanResult {
-        cancelFlag.reset()
         let started = Date()
-        let flag = cancelFlag
 
         progress(
             CleanScanProgress(
@@ -43,9 +31,18 @@ actor CleanScanner {
             )
         )
 
-        var targets = Self.buildTargets()
+        let discovery = try await BlockingIO.run { _ in
+            var issues: [OperationIssue] = []
+            for path in [NSHomeDirectory() + "/Library/Caches", NSHomeDirectory() + "/Library/Logs"] {
+                do { _ = try FileManager.default.contentsOfDirectory(atPath: path) }
+                catch { issues.append(OperationIssue(path: path, message: error.localizedDescription)) }
+            }
+            return (Self.buildTargets(), issues)
+        }
+        var targets = discovery.0
+        var coverageIssues = discovery.1
 
-        // Mole-style project purge discovery (node_modules, target, .next, …)
+        // Opt-in project cache inspection. Unverified outputs remain protected.
         progress(
             CleanScanProgress(
                 fraction: 0.02,
@@ -54,11 +51,12 @@ actor CleanScanner {
                 bytesFound: 0
             )
         )
-        let artifacts = ProjectArtifactService.discover(maxDepth: 4, maxHits: 60) {
-            flag.isCancelled
+        let artifacts = try await BlockingIO.run { cancellation in
+            ProjectArtifactService.discovery(maxDepth: 4, maxHits: 60) { cancellation.isCancelled }
         }
-        if flag.isCancelled { throw CancellationError() }
-        for a in artifacts {
+        try Task.checkCancellation()
+        coverageIssues += artifacts.issues
+        for a in artifacts.artifacts {
             targets.append(
                 CleanTarget(
                     categoryID: "project-artifacts",
@@ -72,6 +70,7 @@ actor CleanScanner {
             )
         }
 
+        targets = Self.uniqueTargets(targets)
         let total = max(targets.count, 1)
         progress(
             CleanScanProgress(
@@ -94,7 +93,7 @@ actor CleanScanner {
                 while inFlight < maxConcurrent, let target = iterator.next() {
                     inFlight += 1
                     group.addTask {
-                        try await Self.measure(target: target, flag: flag)
+                        try await Self.measure(target: target)
                     }
                 }
             }
@@ -104,7 +103,7 @@ actor CleanScanner {
             for try await result in group {
                 inFlight -= 1
                 done += 1
-                if flag.isCancelled { throw CancellationError() }
+                try Task.checkCancellation()
 
                 if let result {
                     items.append(result)
@@ -125,7 +124,7 @@ actor CleanScanner {
             return items
         }
 
-        if flag.isCancelled { throw CancellationError() }
+        try Task.checkCancellation()
 
         let categories = Self.group(items: collected)
         progress(
@@ -140,63 +139,48 @@ actor CleanScanner {
         return CleanScanResult(
             categories: categories,
             scannedAt: Date(),
-            duration: Date().timeIntervalSince(started)
+            duration: Date().timeIntervalSince(started),
+            coverageIssues: coverageIssues
         )
     }
 
-    private static func measure(target: CleanTarget, flag: CancelFlag) async throws -> CleanItem? {
-        if flag.isCancelled { throw CancellationError() }
+    private static func measure(target: CleanTarget) async throws -> CleanItem? {
+        try Task.checkCancellation()
         guard FileManager.default.fileExists(atPath: target.path) else { return nil }
         if PathSafety.isProtected(target.path) { return nil }
         if PathSafety.shouldSkipForSizing(target.path) { return nil }
 
-        do {
-            let sized = try DirectorySizer.size(
-                of: URL(fileURLWithPath: target.path),
-                shouldCancel: { flag.isCancelled }
-            )
-            guard sized.bytes > 0 else { return nil }
-
-            let classification: (SafetyLabel, String)
-            if let s = target.safetyOverride, let r = target.reasonOverride {
-                classification = (s, r)
-            } else {
-                classification = PathSafety.classifyCachePath(target.path)
-            }
-            guard classification.0 != .protected else { return nil }
-
-            // Cheap top-level inventory for the detail pane (not a full recursive count).
-            let entryCount = try? FileManager.default.contentsOfDirectory(atPath: target.path).count
-
-            return CleanItem(
-                name: target.name,
-                path: target.path,
-                categoryID: target.categoryID,
-                categoryName: target.categoryName,
-                byteCount: sized.bytes,
-                safety: classification.0,
-                reason: classification.1,
-                modified: sized.modified,
-                entryCount: entryCount
-            )
-        } catch is CancellationError {
-            throw CancellationError()
-        } catch {
-            return nil
-        }
+        let sized: SizeMeasurement
+        do { sized = try await DirectorySizer.measure(URL(fileURLWithPath: target.path)) }
+        catch is CancellationError { throw CancellationError() }
+        catch { sized = SizeMeasurement(status: .unavailable, issues: [OperationIssue(path: target.path, message: error.localizedDescription)], totalIssueCount: 1) }
+        let classification = target.safetyOverride.flatMap { safety in target.reasonOverride.map { (safety, $0) } }
+            ?? PathSafety.classifyCachePath(target.path)
+        let owner = ownerBundleID(for: target.path)
+        let coverage = sized.status == .complete ? "" : " Size \(sized.status.rawValue). \(sized.issues.first?.message ?? "")"
+        return CleanItem(name: target.name, path: target.path, categoryID: target.categoryID,
+                         categoryName: target.categoryName, byteCount: sized.bytes,
+                         safety: sized.status == .unavailable ? .protected : classification.0,
+                         reason: classification.1 + coverage, modified: sized.modified,
+                         completeness: sized.status, ownerBundleID: owner)
     }
 
-    /// Groups items by category — safe with many items sharing the same category id.
-    private static func group(items: [CleanItem]) -> [CleanCategory] {
-        let preferredOrder = [
-            "user-caches", "browsers", "logs", "developer",
-            "package-managers", "ai-agents", "local-ai",
-            "project-artifacts", "ide", "trash"
-        ]
+    static func ownerBundleID(for path: String) -> String? {
+        let name = URL(fileURLWithPath: path).lastPathComponent
+        if name.hasPrefix("com.") || name.hasPrefix("org.") { return name }
+        let owners = ["Chrome": "com.google.Chrome", "Firefox": "org.mozilla.firefox", "Cursor": "com.todesktop.230313mzl4w4u92",
+                      "Claude": "com.anthropic.claudefordesktop", "Code": "com.microsoft.VSCode", "BraveSoftware": "com.brave.Browser"]
+        return owners.first { path.split(separator: "/").contains(Substring($0.key)) }?.value
+    }
 
+    /// Groups items by category and sorts them.
+    /// Categories are sorted by total size (biggest first), and items inside are sorted by size (biggest first).
+    /// This ensures that the largest clutter is prioritized and shown on top.
+    private static func group(items: [CleanItem]) -> [CleanCategory] {
         var buckets: [String: [CleanItem]] = [:]
         var meta: [String: (name: String, image: String)] = [:]
 
+        // Distribute scan items into their respective category buckets
         for item in items {
             buckets[item.categoryID, default: []].append(item)
             if meta[item.categoryID] == nil {
@@ -204,20 +188,17 @@ actor CleanScanner {
             }
         }
 
-        var orderedIDs = preferredOrder.filter { buckets[$0] != nil }
-        for id in buckets.keys where !orderedIDs.contains(id) {
-            orderedIDs.append(id)
-        }
-
-        return orderedIDs.compactMap { id in
+        // Map buckets to CleanCategory models, sorting items inside each bucket by size (biggest first)
+        let unsortedCategories = buckets.keys.compactMap { id -> CleanCategory? in
             guard var catItems = buckets[id], !catItems.isEmpty else { return nil }
-            catItems.sort {
-                if $0.safety != $1.safety { return $0.safety < $1.safety }
-                return $0.byteCount > $1.byteCount
-            }
-            let m = meta[id] ?? (id, "folder")
+            // Sort items inside this category purely by size descending (biggest first)
+            catItems.sort { $0.byteCount > $1.byteCount }
+            let m = meta[id] ?? (id, icon(for: id))
             return CleanCategory(id: id, name: m.name, systemImage: m.image, items: catItems)
         }
+
+        // Sort categories by their total size (biggest first) to prioritize large space reclaim targets
+        return unsortedCategories.sorted { $0.totalBytes > $1.totalBytes }
     }
 
     private static func icon(for categoryID: String) -> String {
@@ -236,8 +217,21 @@ actor CleanScanner {
         }
     }
 
-    static func buildTargets() -> [CleanTarget] {
-        let home = NSHomeDirectory()
+    static func uniqueTargets(_ targets: [CleanTarget]) -> [CleanTarget] {
+        var byPath: [String: CleanTarget] = [:]
+        for target in targets where !ScanPreferences.isExcluded(target.path) {
+            let path = PathSafety.canonicalPath(target.path)
+            if byPath[path] == nil || target.safetyOverride != nil { byPath[path] = target }
+        }
+        let sorted = byPath.values.sorted { $0.path < $1.path }
+        return sorted.filter { candidate in
+            !sorted.contains { other in
+                other.path != candidate.path && PathSafety.isDescendant(PathSafety.canonicalPath(other.path), of: PathSafety.canonicalPath(candidate.path))
+            }
+        }
+    }
+
+    static func buildTargets(home: String = NSHomeDirectory()) -> [CleanTarget] {
         let lib = (home as NSString).appendingPathComponent("Library")
         var list: [CleanTarget] = []
 
@@ -279,8 +273,8 @@ actor CleanScanner {
                 add(
                     "logs", "Logs", "doc.text", name,
                     (logs as NSString).appendingPathComponent(name),
-                    safety: .safe,
-                    reason: "Log files — safe to remove"
+                    safety: .review,
+                    reason: "Review diagnostics and log history before removal"
                 )
             }
         }
@@ -339,7 +333,7 @@ actor CleanScanner {
             safety: .safe, reason: "npx temporary package cache")
         add("package-managers", "Package Managers", "shippingbox", "pnpm store",
             (home as NSString).appendingPathComponent("Library/pnpm/store"),
-            safety: .safe, reason: "pnpm content-addressable store")
+            safety: .review, reason: "pnpm content-addressable store")
         add("package-managers", "Package Managers", "shippingbox", "Yarn cache",
             (home as NSString).appendingPathComponent("Library/Caches/Yarn"),
             safety: .safe, reason: "Yarn package cache")
@@ -373,15 +367,37 @@ actor CleanScanner {
         add("package-managers", "Package Managers", "shippingbox", "Webpack cache",
             (home as NSString).appendingPathComponent(".cache/webpack"),
             safety: .safe, reason: "Webpack cache")
-        add("package-managers", "Package Managers", "shippingbox", "Hugging Face cache",
-            (home as NSString).appendingPathComponent(".cache/huggingface"),
-            safety: .caution, reason: "ML model/dataset downloads — large re-download")
 
-        // AI coding agents & IDEs (Mole-inspired; caches only — preserve sessions/auth)
+        add("package-managers", "Package Managers", "shippingbox", "Pub Cache",
+            (home as NSString).appendingPathComponent(".pub-cache"),
+            safety: .review, reason: "Flutter/Dart dependency cache")
+        add("package-managers", "Package Managers", "shippingbox", "Deno Cache",
+            (home as NSString).appendingPathComponent("Library/Caches/deno"),
+            safety: .safe, reason: "Deno modules and compiler cache")
+        add("package-managers", "Package Managers", "shippingbox", "Swift PM Cache",
+            (home as NSString).appendingPathComponent("Library/Caches/org.swift.swiftpm"),
+            safety: .safe, reason: "Swift Package Manager repositories cache")
+        add("package-managers", "Package Managers", "shippingbox", "Cypress Cache",
+            (home as NSString).appendingPathComponent("Library/Caches/Cypress"),
+            safety: .review, reason: "Cypress binary installations")
+        add("package-managers", "Package Managers", "shippingbox", "Cargo Registry Index",
+            (home as NSString).appendingPathComponent(".cargo/registry/index"),
+            safety: .safe, reason: "Rust crate registry index")
+        add("package-managers", "Package Managers", "shippingbox", "Cargo Git DB",
+            (home as NSString).appendingPathComponent(".cargo/git/db"),
+            safety: .review, reason: "Rust git dependencies database")
+        add("package-managers", "Package Managers", "shippingbox", "Poetry Cache",
+            (home as NSString).appendingPathComponent("Library/Caches/pypoetry"),
+            safety: .review, reason: "Poetry virtual environments and package cache")
+        add("package-managers", "Package Managers", "shippingbox", "pip Cache (Home)",
+            (home as NSString).appendingPathComponent(".cache/pip"),
+            safety: .safe, reason: "Python pip download cache")
+
+        // AI coding agents (caches and version folders - preserve workspace sessions)
         let support = (lib as NSString).appendingPathComponent("Application Support")
         add("ai-agents", "AI Agents", "cpu", "Claude Code app cache",
             (support as NSString).appendingPathComponent("Claude/Cache"),
-            safety: .safe, reason: "Claude Desktop web/app cache — sessions preserved elsewhere")
+            safety: .review, reason: "Claude Desktop web/app cache — sessions preserved elsewhere")
         add("ai-agents", "AI Agents", "cpu", "Claude Code GPU cache",
             (support as NSString).appendingPathComponent("Claude/GPUCache"),
             safety: .safe, reason: "Claude Desktop GPU cache")
@@ -399,44 +415,43 @@ actor CleanScanner {
             safety: .safe, reason: "Cursor GPU cache")
         add("ai-agents", "AI Agents", "cpu", "Cursor logs",
             (support as NSString).appendingPathComponent("Cursor/logs"),
-            safety: .safe, reason: "Cursor application logs")
-        add("ai-agents", "AI Agents", "cpu", "Cursor Agent versions",
-            (home as NSString).appendingPathComponent(".local/share/cursor-agent/versions"),
-            safety: .review, reason: "Old Cursor Agent CLI builds — keep latest")
-        add("ai-agents", "AI Agents", "cpu", "Claude Code CLI versions",
-            (home as NSString).appendingPathComponent(".local/share/claude/versions"),
-            safety: .review, reason: "Old Claude Code CLI versions")
+            safety: .review, reason: "Cursor application logs")
+
         add("ai-agents", "AI Agents", "cpu", "Codex CLI temp",
             (home as NSString).appendingPathComponent(".codex/.tmp"),
-            safety: .safe, reason: "Codex temporary files (sessions/auth preserved)")
+            safety: .review, reason: "Unverified Codex temporary files. Review for active sessions before removal.")
         add("ai-agents", "AI Agents", "cpu", "Codex CLI logs",
             (home as NSString).appendingPathComponent(".codex/log"),
-            safety: .safe, reason: "Codex log files")
-        add("ai-agents", "AI Agents", "cpu", "Gemini CLI temp",
-            (home as NSString).appendingPathComponent(".gemini/tmp"),
-            safety: .safe, reason: "Gemini CLI temp work files")
+            safety: .review, reason: "Codex log files")
+
         add("ai-agents", "AI Agents", "cpu", "Antigravity browser cache",
             (home as NSString).appendingPathComponent(".gemini/antigravity-browser-profile/Default/Cache"),
             safety: .safe, reason: "Gemini Antigravity browser cache")
         add("ai-agents", "AI Agents", "cpu", "Continue.dev cache",
             (home as NSString).appendingPathComponent(".continue/index"),
             safety: .review, reason: "Continue.dev index/cache")
-        add("ai-agents", "AI Agents", "cpu", "Aider cache",
-            (home as NSString).appendingPathComponent(".aider"),
-            safety: .review, reason: "Aider local cache/history — review first")
+
+
+
+
+        add("ai-agents", "AI Agents", "cpu", "Ollama App Cache",
+            (home as NSString).appendingPathComponent("Library/Caches/com.electron.ollama"),
+            safety: .safe, reason: "Ollama Desktop client cache")
+        add("ai-agents", "AI Agents", "cpu", "LM Studio App Cache",
+            (home as NSString).appendingPathComponent("Library/Caches/lm-studio"),
+            safety: .safe, reason: "LM Studio Desktop client cache")
+
+
+
+
 
         // Local AI models
-        add("local-ai", "Local AI Models", "brain", "Ollama models",
-            (home as NSString).appendingPathComponent(".ollama/models"),
-            safety: .caution, reason: "Local LLM weights — large re-download if removed")
-        add("local-ai", "Local AI Models", "brain", "LM Studio",
-            (home as NSString).appendingPathComponent(".lmstudio"),
-            safety: .caution, reason: "LM Studio models and data")
-        add("local-ai", "Local AI Models", "brain", "Hugging Face hub",
-            (home as NSString).appendingPathComponent(".cache/huggingface/hub"),
-            safety: .caution, reason: "Downloaded HF models")
 
-        // IDEs
+
+
+
+
+        // IDEs & Editor system caches (keep user preferences and configurations intact)
         add("ide", "Editors & IDEs", "chevron.left.forwardslash.chevron.right", "VS Code Cache",
             (support as NSString).appendingPathComponent("Code/Cache"),
             safety: .safe, reason: "VS Code Chromium cache")
@@ -448,24 +463,33 @@ actor CleanScanner {
             safety: .safe, reason: "Zed editor cache")
         add("ide", "Editors & IDEs", "chevron.left.forwardslash.chevron.right", "JetBrains logs",
             (home as NSString).appendingPathComponent("Library/Logs/JetBrains"),
-            safety: .safe, reason: "JetBrains IDE logs")
+            safety: .review, reason: "JetBrains IDE logs")
         add("ide", "Editors & IDEs", "chevron.left.forwardslash.chevron.right", "Xcode cache",
             (home as NSString).appendingPathComponent("Library/Caches/com.apple.dt.Xcode"),
             safety: .safe, reason: "Xcode app cache")
+        add("ide", "Editors & IDEs", "chevron.left.forwardslash.chevron.right", "JetBrains Caches",
+            (home as NSString).appendingPathComponent("Library/Caches/JetBrains"),
+            safety: .review, reason: "IntelliJ, PyCharm, WebStorm, CLion cache and indexing data")
+
+        // Dynamically discover installed Android Studio version caches
+        let googleCaches = (home as NSString).appendingPathComponent("Library/Caches/Google")
+        if let children = try? FileManager.default.contentsOfDirectory(atPath: googleCaches) {
+            for name in children where name.lowercased().contains("android") {
+                add("ide", "Editors & IDEs", "chevron.left.forwardslash.chevron.right", "Android Studio (\(name))",
+                    (googleCaches as NSString).appendingPathComponent(name),
+                    safety: .review, reason: "Android Studio system and build cache")
+            }
+        }
+
+        // Heavy virtualization/container developer environments
 
         add(
             "logs", "Logs", "doc.text", "Diagnostic Reports",
             (lib as NSString).appendingPathComponent("Logs/DiagnosticReports"),
-            safety: .safe, reason: "Crash and diagnostic reports"
+            safety: .review, reason: "Crash and diagnostic reports"
         )
 
-        add(
-            "trash", "Trash", "trash", "User Trash",
-            (home as NSString).appendingPathComponent(".Trash"),
-            safety: .review,
-            reason: "Already in Trash — empty from Finder when ready"
-        )
 
-        return list
+        return uniqueTargets(list)
     }
 }

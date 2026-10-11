@@ -7,7 +7,6 @@ import SwiftUI
 
 struct AppsView: View {
     @Bindable var model: AppsViewModel
-    @State private var confirmUninstall = false
 
     var body: some View {
         VStack(spacing: 0) {
@@ -46,18 +45,11 @@ struct AppsView: View {
         .onAppear {
             if model.apps.isEmpty { model.loadApps() }
         }
-        .confirmationDialog(
-            "Move selected items to Trash?",
-            isPresented: $confirmUninstall,
-            titleVisibility: .visible
-        ) {
-            Button("Move \(ByteFormat.string(for: model.reclaimableBytes)) to Trash", role: .destructive) {
-                Task { await model.uninstallSelected() }
-            }
-            Button("Cancel", role: .cancel) {}
-        } message: {
-            Text("App bundle and selected leftovers move to Trash.")
+        .sheet(item: $model.removalPlan) { plan in
+            RemovalReviewSheet(plan: plan) { frozen in Task { await model.uninstallSelected(frozen) } }
         }
+        .sheet(item: $model.removalResult) { RemovalResultSheet(result: $0) }
+
     }
 
     private var appList: some View {
@@ -131,7 +123,7 @@ struct AppsView: View {
                         Text(app.name)
                             .font(.system(size: 16, weight: .semibold))
                             .foregroundStyle(Color.huskText)
-                        Text(app.path)
+                        Text(app.path + " · Size " + app.completeness.rawValue)
                             .font(.system(size: 10, design: .monospaced))
                             .foregroundStyle(Color.huskTextMuted)
                             .lineLimit(1)
@@ -172,6 +164,7 @@ struct AppsView: View {
                                         .foregroundStyle(model.selectedLeftoverIDs.contains(item.id) ? Color.huskPrimary : Color.huskTextMuted)
                                 }
                                 .buttonStyle(.plain)
+                                .accessibilityLabel("Select " + item.name)
                                 VStack(alignment: .leading, spacing: 2) {
                                     Text(item.name).foregroundStyle(Color.huskText)
                                     Text(item.path)
@@ -205,14 +198,14 @@ struct AppsView: View {
 
                 Divider().overlay(Color.huskBorder)
                 HStack {
-                    Text("Reclaimable \(ByteFormat.string(for: model.reclaimableBytes))")
+                    Text("Selected estimate \(ByteFormat.string(for: model.reclaimableBytes))")
                         .font(.system(size: 12, design: .monospaced))
                         .foregroundStyle(Color.huskTextMuted)
                     Spacer()
                     HuskPillButton(title: "Move to Trash", systemImage: "trash") {
-                        confirmUninstall = true
+                        Task { await model.prepareRemoval() }
                     }
-                    .disabled(model.isUninstalling || (model.selectedLeftovers.isEmpty && !model.includeAppBundle) || app.isFromSystem)
+                    .disabled(model.isUninstalling || model.isLoadingLeftovers || (model.selectedLeftovers.isEmpty && !model.includeAppBundle) || app.isFromSystem)
                     .opacity(app.isFromSystem ? 0.4 : 1)
                 }
                 .padding(14)

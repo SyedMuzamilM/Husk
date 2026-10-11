@@ -14,9 +14,12 @@ struct StatusView: View {
     var body: some View {
         VStack(spacing: 0) {
             header
+            if let error = model.lastError { Text(error).foregroundStyle(.orange).textSelection(.enabled).padding() }
             ScrollView {
                 VStack(alignment: .leading, spacing: 16) {
                     metricsGrid
+                    Text("Memory pressure: " + model.snapshot.memoryPressure + " · Swap: " + (model.snapshot.swapUsedBytes.map { ByteFormat.string(for: Int64($0)) } ?? "Unknown"))
+                        .font(.callout).foregroundStyle(.secondary)
                     processTable
                 }
                 .padding(HuskTheme.contentPadding)
@@ -34,14 +37,14 @@ struct StatusView: View {
         ) {
             Button(forceQuit ? "Force Quit" : "Quit", role: .destructive) {
                 if let p = processPendingQuit {
-                    model.terminate(pid: p.pid, force: forceQuit)
+                    model.terminate(p, force: forceQuit)
                 }
                 processPendingQuit = nil
             }
             Button("Cancel", role: .cancel) { processPendingQuit = nil }
         } message: {
             if let p = processPendingQuit {
-                Text("PID \(p.pid) · \(String(format: "%.1f%%", p.cpuPercent)) · \(ByteFormat.string(for: Int64(p.memoryBytes)))")
+                Text("Unsaved work may be lost. PID \(p.pid) · \(String(format: "%.1f%%", p.cpuPercent)) · \(ByteFormat.string(for: Int64(p.memoryBytes)))")
             }
         }
     }
@@ -74,13 +77,13 @@ struct StatusView: View {
     private var metricsGrid: some View {
         let s = model.snapshot
         return LazyVGrid(columns: [GridItem(.adaptive(minimum: 170), spacing: 12)], spacing: 12) {
-            MetricCard(title: "CPU", value: String(format: "%.0f%%", s.cpuPercent),
+            MetricCard(title: "CPU", value: s.cpuAvailable ? String(format: "%.0f%%", s.cpuPercent) : "Waiting",
                        subtitle: "Load \(String(format: "%.2f", s.loadAverage1))",
                        progress: s.cpuPercent / 100, tint: .huskPrimary)
-            MetricCard(title: "Memory", value: ByteFormat.string(for: Int64(s.memoryUsedBytes)),
-                       subtitle: "of \(ByteFormat.string(for: Int64(s.memoryTotalBytes)))",
+            MetricCard(title: "Memory estimate", value: s.memoryAvailable ? ByteFormat.string(for: Int64(s.memoryUsedBytes)) : "Unknown",
+                       subtitle: "Active + wired + compressed; of \(ByteFormat.string(for: Int64(s.memoryTotalBytes)))",
                        progress: s.memoryUsedPercent / 100, tint: .huskTeal)
-            MetricCard(title: "Disk free", value: ByteFormat.string(for: s.diskFreeBytes),
+            MetricCard(title: "Disk free", value: s.diskAvailable ? ByteFormat.string(for: s.diskFreeBytes) : "Unknown",
                        subtitle: s.diskTotalBytes > 0 ? ByteFormat.string(for: s.diskTotalBytes) + " volume" : "—",
                        progress: s.diskTotalBytes > 0 ? s.diskUsedPercent / 100 : 0, tint: .safeLabel)
             MetricCard(title: "Thermal", value: s.thermalStateDescription,
@@ -93,7 +96,7 @@ struct StatusView: View {
     private var processTable: some View {
         VStack(alignment: .leading, spacing: 10) {
             HStack {
-                Text("Active Processes")
+                Text("Processes · CPU is lifetime average; host CPU is interval usage")
                     .font(.system(size: 14, weight: .semibold))
                     .foregroundStyle(Color.huskText)
                 Spacer()
@@ -115,7 +118,7 @@ struct StatusView: View {
             .padding(10)
             .background(RoundedRectangle(cornerRadius: 10).fill(Color.huskSurfaceHigh.opacity(0.6)))
 
-            VStack(spacing: 0) {
+            LazyVStack(spacing: 0) {
                 ForEach(model.filteredProcesses) { proc in
                     HStack {
                         VStack(alignment: .leading, spacing: 2) {
@@ -145,6 +148,7 @@ struct StatusView: View {
                             processPendingQuit = proc
                         }
                         .buttonStyle(.plain)
+                        .disabled(!proc.canTerminate)
                         .font(.system(size: 11, weight: .semibold))
                         .foregroundStyle(Color.huskTextSecondary)
                         Button("Force") {
@@ -152,6 +156,7 @@ struct StatusView: View {
                             processPendingQuit = proc
                         }
                         .buttonStyle(.plain)
+                        .disabled(!proc.canTerminate)
                         .font(.system(size: 11, weight: .semibold))
                         .foregroundStyle(Color.cautionLabel)
                     }

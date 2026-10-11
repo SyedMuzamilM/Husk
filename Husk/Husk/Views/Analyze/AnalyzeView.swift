@@ -9,7 +9,7 @@ import SwiftUI
 struct AnalyzeView: View {
     @Bindable var model: AnalyzeViewModel
     @State private var selectedRect: TreemapRect?
-    @State private var confirmTrashPath: String?
+    @State private var showList = true
 
     var body: some View {
         VStack(spacing: 0) {
@@ -21,30 +21,24 @@ struct AnalyzeView: View {
                     .padding(.bottom, 8)
             }
             breadcrumbs
-            treemapArea
+            if let error = model.errorMessage { Text(error).foregroundStyle(.orange).textSelection(.enabled).padding() }
+            if let current = model.current {
+                Text("Allocated estimate: " + ByteFormat.string(for: current.byteCount) + " · " + current.completeness.rawValue
+                     + " · Other/hidden: " + ByteFormat.string(for: current.omittedBytes))
+                    .font(.callout).foregroundStyle(.secondary).padding(.horizontal)
+                if let issue = current.issues.first { Text(issue.message).font(.caption).foregroundStyle(.orange) }
+            }
+            if showList { storageList } else { treemapArea }
             if let selectedRect {
                 selectionBar(selectedRect)
             }
         }
-        .confirmationDialog(
-            "Move to Trash?",
-            isPresented: Binding(
-                get: { confirmTrashPath != nil },
-                set: { if !$0 { confirmTrashPath = nil } }
-            ),
-            titleVisibility: .visible
-        ) {
-            Button("Move to Trash", role: .destructive) {
-                if let path = confirmTrashPath {
-                    Task { _ = await model.trash(path) }
-                }
-                confirmTrashPath = nil
-                selectedRect = nil
-            }
-            Button("Cancel", role: .cancel) { confirmTrashPath = nil }
-        } message: {
-            Text(confirmTrashPath ?? "")
+        .sheet(item: $model.removalPlan) { plan in
+            RemovalReviewSheet(plan: plan) { frozen in Task { await model.trash(frozen); selectedRect = nil } }
         }
+        .sheet(item: $model.removalResult) { RemovalResultSheet(result: $0) }
+        .onChange(of: model.isLoading) { _, loading in if loading { selectedRect = nil } }
+
     }
 
     private var header: some View {
@@ -64,7 +58,16 @@ struct AnalyzeView: View {
                     .buttonStyle(.plain)
                     .foregroundStyle(Color.huskTextSecondary)
             }
+            Toggle("List", isOn: $showList).toggleStyle(.button)
+            Toggle("Hidden", isOn: $model.includeHidden)
+                .onChange(of: model.includeHidden) { model.scan(path: model.current?.path ?? model.selectedRootPath) }
             Menu {
+                Button("Choose Folder…") {
+                    let panel = NSOpenPanel()
+                    panel.canChooseDirectories = true
+                    panel.canChooseFiles = false
+                    if panel.runModal() == .OK, let url = panel.url { model.scan(path: url.path) }
+                }
                 Button("Library") {
                     model.scan(path: (NSHomeDirectory() as NSString).appendingPathComponent("Library"))
                 }
@@ -119,6 +122,28 @@ struct AnalyzeView: View {
             }
             .padding(.horizontal, HuskTheme.contentPadding)
             .padding(.bottom, 10)
+        }
+    }
+
+    private var storageList: some View {
+        List(model.current?.sortedChildren() ?? []) { node in
+            HStack {
+                Label(node.name, systemImage: node.isDirectory ? "folder" : "doc")
+                Spacer()
+                Text(ByteFormat.string(for: node.byteCount)).monospacedDigit()
+                Text(node.completeness.rawValue).foregroundStyle(.secondary)
+                Button("Reveal") { model.reveal(node.path) }
+                if node.isDirectory { Button("Open") { model.drill(into: node) } }
+                Button("Review removal") { Task { await model.prepareRemoval(path: node.path, bytes: node.byteCount) } }
+                    .disabled(PathSafety.isProtected(node.path) || node.completeness == .unavailable)
+            }.contextMenu {
+                Button("Exclude from scans") {
+                    UserDefaults.standard.set(ScanPreferences.excludedPaths + [node.path], forKey: "husk.excludedPaths")
+                    model.scan(path: model.current?.path)
+                }
+            }
+        }.overlay {
+            if model.current == nil { ContentUnavailableView("Choose a folder", systemImage: "folder", description: Text("Measure local storage without reading file contents.")) }
         }
     }
 
@@ -220,7 +245,7 @@ struct AnalyzeView: View {
                 .foregroundStyle(Color.huskTextSecondary)
             }
             HuskPillButton(title: "Move to Trash", systemImage: "trash", prominent: true) {
-                confirmTrashPath = rect.path
+                Task { await model.prepareRemoval(path: rect.path, bytes: rect.byteCount) }
             }
             .disabled(PathSafety.isProtected(rect.path))
             .scaleEffect(0.92)

@@ -19,18 +19,25 @@ enum HuskTheme {
 // MARK: - Palette (stitch DESIGN.md)
 
 extension Color {
-    static let huskBg = Color(red: 0.075, green: 0.075, blue: 0.078)          // #131314
-    static let huskSurface = Color(red: 0.122, green: 0.122, blue: 0.125)     // #1f1f20
-    static let huskSurfaceHigh = Color(red: 0.165, green: 0.165, blue: 0.169) // #2a2a2b
-    static let huskSurfaceLow = Color(red: 0.106, green: 0.106, blue: 0.110)  // #1b1b1c
+    static let huskBg = adaptive(dark: 0.075, light: 0.97)
+    static let huskSurface = adaptive(dark: 0.122, light: 1)
+    static let huskSurfaceHigh = adaptive(dark: 0.165, light: 0.92)
+    static let huskSurfaceLow = adaptive(dark: 0.106, light: 0.95)
     static let huskPrimary = Color(red: 0.910, green: 0.643, blue: 0.361)     // #e8a45c
     static let huskPrimaryBright = Color(red: 1.0, green: 0.722, blue: 0.431) // #ffb86e
     static let huskOnPrimary = Color(red: 0.173, green: 0.102, blue: 0)       // dark brown text on amber
-    static let huskText = Color(red: 0.898, green: 0.886, blue: 0.890)        // #e5e2e3
-    static let huskTextSecondary = Color(red: 0.839, green: 0.765, blue: 0.702) // #d6c3b3
-    static let huskTextMuted = Color(red: 0.620, green: 0.557, blue: 0.498)   // #9e8e7f
+    static let huskText = Color.primary
+    static let huskTextSecondary = Color.secondary
+    static let huskTextMuted = Color.secondary
     static let huskTeal = Color(red: 0.467, green: 0.839, blue: 0.824)        // #77d6d2
-    static let huskBorder = Color.white.opacity(0.08)
+    static let huskBorder = Color.primary.opacity(0.12)
+
+    private static func adaptive(dark: CGFloat, light: CGFloat) -> Color {
+        Color(nsColor: NSColor(name: nil) { appearance in
+            let value = appearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua ? dark : light
+            return NSColor(white: value, alpha: 1)
+        })
+    }
 
     static let safeLabel = Color(red: 0.35, green: 0.72, blue: 0.48)
     static let reviewLabel = Color(red: 0.91, green: 0.64, blue: 0.36)
@@ -50,16 +57,10 @@ extension Color {
 }
 
 enum ByteFormat {
-    private static let formatter: ByteCountFormatter = {
-        let f = ByteCountFormatter()
-        f.countStyle = .file
-        f.allowsNonnumericFormatting = false
-        return f
-    }()
-
     static func string(for bytes: Int64) -> String {
-        formatter.string(fromByteCount: bytes)
+        bytes.formatted(.byteCount(style: .file, allowedUnits: .all, spellsOutZero: false, includesActualByteCount: false))
     }
+
 }
 
 // MARK: - Shared chrome

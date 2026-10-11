@@ -14,7 +14,7 @@ actor SystemMetricsService {
     private var previousCPU = host_cpu_load_info()
     private var hasPreviousCPU = false
 
-    func sample(topProcessLimit: Int = 30) async -> (SystemSnapshot, [ProcessInfoRow]) {
+    func sample() async throws -> (SystemSnapshot, [ProcessInfoRow]) {
         var snapshot = SystemSnapshot()
         snapshot.timestamp = Date()
 
@@ -24,7 +24,7 @@ actor SystemMetricsService {
         sampleLoad(&snapshot)
         sampleThermal(&snapshot)
 
-        let processes = await sampleProcesses(limit: topProcessLimit)
+        let processes = try await sampleProcesses()
         snapshot.processCount = processes.count
         return (snapshot, processes)
     }
@@ -32,13 +32,15 @@ actor SystemMetricsService {
     // MARK: - CPU
 
     private func sampleCPU(_ snapshot: inout SystemSnapshot) {
+        let host = mach_host_self()
+        defer { mach_port_deallocate(mach_task_self_, host) }
         var count = mach_msg_type_number_t(
             MemoryLayout<host_cpu_load_info>.stride / MemoryLayout<integer_t>.stride
         )
         var info = host_cpu_load_info()
         let kr = withUnsafeMutablePointer(to: &info) { ptr -> kern_return_t in
             ptr.withMemoryRebound(to: integer_t.self, capacity: Int(count)) { intPtr in
-                host_statistics(mach_host_self(), HOST_CPU_LOAD_INFO, intPtr, &count)
+                host_statistics(host, HOST_CPU_LOAD_INFO, intPtr, &count)
             }
         }
         guard kr == KERN_SUCCESS else { return }
@@ -50,6 +52,7 @@ actor SystemMetricsService {
             let dNice = Double(info.cpu_ticks.3 &- previousCPU.cpu_ticks.3)
             let total = dUser + dSys + dIdle + dNice
             if total > 0 {
+                snapshot.cpuAvailable = true
                 snapshot.cpuPercent = max(0, min(100, ((dUser + dSys + dNice) / total) * 100))
             }
         }
@@ -61,18 +64,21 @@ actor SystemMetricsService {
     // MARK: - Memory
 
     private func sampleMemory(_ snapshot: inout SystemSnapshot) {
+        let host = mach_host_self()
+        defer { mach_port_deallocate(mach_task_self_, host) }
         var size = mach_msg_type_number_t(
             MemoryLayout<vm_statistics64>.stride / MemoryLayout<integer_t>.stride
         )
         var vmstat = vm_statistics64()
         let kr = withUnsafeMutablePointer(to: &vmstat) { ptr -> kern_return_t in
             ptr.withMemoryRebound(to: integer_t.self, capacity: Int(size)) { intPtr in
-                host_statistics64(mach_host_self(), HOST_VM_INFO64, intPtr, &size)
+                host_statistics64(host, HOST_VM_INFO64, intPtr, &size)
             }
         }
         guard kr == KERN_SUCCESS else { return }
 
-        let page = UInt64(vm_kernel_page_size)
+        snapshot.memoryAvailable = true
+        let page = UInt64(getpagesize())
         let active = UInt64(vmstat.active_count) * page
         let wired = UInt64(vmstat.wire_count) * page
         let compressed = UInt64(vmstat.compressor_page_count) * page
@@ -87,6 +93,15 @@ actor SystemMetricsService {
         var len = MemoryLayout<UInt64>.size
         sysctlbyname("hw.memsize", &memSize, &len, nil, 0)
         snapshot.memoryTotalBytes = memSize
+        var pressure: Int32 = 0
+        var pressureSize = MemoryLayout<Int32>.size
+        if sysctlbyname("kern.memorystatus_vm_pressure_level", &pressure, &pressureSize, nil, 0) == 0 {
+            snapshot.memoryPressure = pressure == 1 ? "Normal" : pressure == 2 ? "Warning" : pressure == 4 ? "Critical" : "Unknown"
+        }
+        var swap = xsw_usage()
+        var swapSize = MemoryLayout<xsw_usage>.size
+        if sysctlbyname("vm.swapusage", &swap, &swapSize, nil, 0) == 0 { snapshot.swapUsedBytes = swap.xsu_used }
+
     }
 
     // MARK: - Disk / load / thermal
@@ -99,8 +114,9 @@ actor SystemMetricsService {
             .volumeAvailableCapacityKey
         ]) else { return }
 
-        snapshot.diskFreeBytes = values.volumeAvailableCapacityForImportantUsage
-            ?? Int64(values.volumeAvailableCapacity ?? 0)
+        snapshot.diskAvailable = true
+        snapshot.diskFreeBytes = Int64(values.volumeAvailableCapacity ?? 0)
+        snapshot.diskImportantUsageBytes = values.volumeAvailableCapacityForImportantUsage
         snapshot.diskTotalBytes = Int64(values.volumeTotalCapacity ?? 0)
     }
 
@@ -123,33 +139,12 @@ actor SystemMetricsService {
 
     // MARK: - Processes via ps (fast, portable)
 
-    private func sampleProcesses(limit: Int) async -> [ProcessInfoRow] {
-        await withCheckedContinuation { cont in
-            DispatchQueue.global(qos: .utility).async {
-                cont.resume(returning: Self.runPS(limit: limit))
-            }
+    private func sampleProcesses() async throws -> [ProcessInfoRow] {
+        let result = try await ProcessRunner.run("/bin/ps", arguments: ["-axo", "pid=,pcpu=,rss=,user=,comm="])
+        guard !result.timedOut, !result.truncated, result.exitCode == 0 else {
+            throw RemovalError.changed("Process sampling failed or exceeded its limits. Previous sample retained.")
         }
-    }
-
-    nonisolated private static func runPS(limit: Int) -> [ProcessInfoRow] {
-        let process = Process()
-        process.executableURL = URL(fileURLWithPath: "/bin/ps")
-        // pid, %cpu, rss(KB), user, command
-        process.arguments = ["-axo", "pid=,pcpu=,rss=,user=,comm="]
-        let pipe = Pipe()
-        process.standardOutput = pipe
-        process.standardError = FileHandle.nullDevice
-
-        do {
-            try process.run()
-            process.waitUntilExit()
-        } catch {
-            return []
-        }
-
-        let data = pipe.fileHandleForReading.readDataToEndOfFile()
-        guard let text = String(data: data, encoding: .utf8) else { return [] }
-
+        let text = result.text
         let myUser = NSUserName()
         var rows: [ProcessInfoRow] = []
         rows.reserveCapacity(256)
@@ -164,7 +159,7 @@ actor SystemMetricsService {
             guard parts.count >= 5,
                   let pid = Int32(parts[0]),
                   let cpu = Double(parts[1]),
-                  let rssKB = UInt64(parts[2])
+                  let rssKB = UInt64(parts[2]), rssKB <= UInt64.max / 1024
             else { continue }
 
             let user = parts[3]
@@ -179,8 +174,9 @@ actor SystemMetricsService {
                     path: nil,
                     cpuPercent: cpu,
                     memoryBytes: mem,
-                    threadCount: 0,
-                    isOwnedByUser: user == myUser || user == "\(getuid())"
+                    threadCount: nil,
+                    isOwnedByUser: user == myUser || user == "\(getuid())",
+                    identity: try? ProcessIdentity.read(pid)
                 )
             )
         }
@@ -190,17 +186,7 @@ actor SystemMetricsService {
             let s1 = $1.cpuPercent * 8 + Double($1.memoryBytes) / 80_000_000
             return s0 > s1
         }
-        return Array(rows.prefix(limit))
+        return rows
     }
 
-    // MARK: - Process control
-
-    nonisolated static func terminate(pid: Int32, force: Bool) -> Bool {
-        if let app = NSRunningApplication(processIdentifier: pid) {
-            return force ? app.forceTerminate() : app.terminate()
-        }
-        // Fallback signal
-        let sig = force ? SIGKILL : SIGTERM
-        return kill(pid, sig) == 0
-    }
 }
