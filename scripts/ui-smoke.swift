@@ -14,7 +14,8 @@ import ScreenCaptureKit
         let output = URL(fileURLWithPath: CommandLine.arguments[1], isDirectory: true)
         try FileManager.default.createDirectory(at: output, withIntermediateDirectories: true)
         let permissions = PermissionService()
-        try await verifyResultTransitions(permissions: permissions, output: output)
+        let screenFilter = ProcessInfo.processInfo.environment["HUSK_UI_SCREEN_FILTER"]
+        if screenFilter != "welcome" { try await verifyResultTransitions(permissions: permissions, output: output) }
         if ProcessInfo.processInfo.environment["HUSK_UI_TRANSITIONS_ONLY"] == "1" { return }
         try await verifyOnboarding(permissions: permissions, output: output)
         if ProcessInfo.processInfo.environment["HUSK_UI_ONBOARDING_ONLY"] == "1" { return }
@@ -92,27 +93,29 @@ import ScreenCaptureKit
         for appearance in ["light", "dark"] {
             for width in [960.0, 1200.0] {
                 for (name, content, expected) in tests {
+                    if let screenFilter, !name.hasPrefix(screenFilter) { continue }
                     let section: AppSection = name.hasPrefix("ai-") ? .aiStorage : name.hasPrefix("storage-") ? .analyze : name.hasPrefix("applications") ? .apps : name == "status" ? .status : name == "maintenance" ? .optimize : name == "settings" ? .settings : .clean
                     let view = name == "review" || name == "result" || name.hasPrefix("welcome") ? content : AnyView(FixtureShell(content: content, section: section))
-                    let height = width == 960 ? 640.0 : 720.0
+                    let screenWidth = name.hasPrefix("welcome") ? Double(HuskTheme.onboardingWidth) : width
+                    let height = name.hasPrefix("welcome") ? Double(HuskTheme.onboardingHeight) : width == 960 ? 640.0 : 720.0
                     let root = view.environment(permissions).preferredColorScheme(appearance == "dark" ? .dark : .light)
                         .environment(\.controlActiveState, .active)
-                        .frame(width: width, height: height)
+                        .frame(width: screenWidth, height: height)
                         .ignoresSafeArea(edges: .top)
                     let controller = NSHostingController(rootView: root)
                     controller.sizingOptions = []
                     let hosting = controller.view
-                    let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: width, height: width == 960 ? 640 : 720), styleMask: [.titled, .closable, .resizable, .fullSizeContentView], backing: .buffered, defer: false)
+                    let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: screenWidth, height: height), styleMask: [.titled, .closable, .resizable, .fullSizeContentView], backing: .buffered, defer: false)
                     window.isReleasedWhenClosed = false
                     window.titleVisibility = .hidden
                     window.titlebarAppearsTransparent = true
                     window.contentViewController = controller
-                    window.setContentSize(NSSize(width: width, height: height))
+                    window.setContentSize(NSSize(width: screenWidth, height: height))
                     window.appearance = NSAppearance(named: appearance == "dark" ? .darkAqua : .aqua)
                     window.makeKeyAndOrderFront(nil)
                     try await Task.sleep(for: .milliseconds(180))
                     hosting.layoutSubtreeIfNeeded()
-                    precondition(abs(window.contentLayoutRect.width - width) < 1, "Fixture window changed width")
+                    precondition(abs(window.contentLayoutRect.width - screenWidth) < 1, "Fixture window changed width")
                     let cgImage = try await capture(window)
                     let bitmap = NSBitmapImageRep(cgImage: cgImage)
                     guard let png = bitmap.representation(using: .png, properties: [:]) else { fatalError("No PNG") }
@@ -283,21 +286,22 @@ import ScreenCaptureKit
 
     @MainActor static func verifyOnboarding(permissions: PermissionService, output: URL) async throws {
         // New instances use the same welcome path as the persisted Settings replay action.
-        for reduceMotion in [false, true] {
+        for (appearance, reduceMotion) in [("light", false), ("dark", true)] {
             var completions = 0
             let root = OnboardingView(reduceMotionOverride: reduceMotion, onFinished: { completions += 1 })
                 .environment(permissions)
-                .environment(\.controlActiveState, .active).preferredColorScheme(.dark)
-                .frame(width: 960, height: 640).ignoresSafeArea(edges: .top)
+                .environment(\.controlActiveState, .active).preferredColorScheme(appearance == "dark" ? .dark : .light)
+                .frame(width: HuskTheme.onboardingWidth, height: HuskTheme.onboardingHeight).ignoresSafeArea(edges: .top)
             let controller = NSHostingController(rootView: root)
             controller.sizingOptions = []
-            let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 960, height: 640),
+            let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: HuskTheme.onboardingWidth, height: HuskTheme.onboardingHeight),
                                   styleMask: [.titled, .fullSizeContentView], backing: .buffered, defer: false)
             window.isReleasedWhenClosed = false
             window.titleVisibility = .hidden
             window.titlebarAppearsTransparent = true
             window.contentViewController = controller
-            window.setContentSize(NSSize(width: 960, height: 640))
+            window.setContentSize(NSSize(width: HuskTheme.onboardingWidth, height: HuskTheme.onboardingHeight))
+            window.appearance = NSAppearance(named: appearance == "dark" ? .darkAqua : .aqua)
             window.makeKeyAndOrderFront(nil)
             try await Task.sleep(for: .milliseconds(200))
             try await requireText("Welcome to Husk", in: window)
@@ -316,14 +320,14 @@ import ScreenCaptureKit
             precondition(completions == 0, "The tour must not mark onboarding complete before optional setup")
             try await clickLabel("Back to tour", in: window)
             try await requireText("Welcome to Husk", in: window)
-            // The artwork card is 560pt wide and centered. Its close circle is 30pt in from the top-right.
-            try sendClick(NSPoint(x: 730, y: 585), window: window)
+            // The skip circle is inset 30pt horizontally and below the native window controls.
+            try sendClick(NSPoint(x: 530, y: 536), window: window)
             try await Task.sleep(for: .milliseconds(350))
             try await requireText("Your Mac. Your permission", in: window)
             precondition(completions == 0, "Skipping the tour must still offer optional setup")
             try await clickLabel("Get started", in: window)
             precondition(completions == 1, "Get started must complete onboarding once without requiring disk access")
-            print("PASS native tour forward, back, Return, skip, setup and completion; Reduce Motion \(reduceMotion)")
+            print("PASS native tour forward, back, Return, skip, setup and completion; \(appearance), Reduce Motion \(reduceMotion)")
             fflush(stdout)
             window.close()
         }

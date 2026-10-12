@@ -5,16 +5,19 @@ import AppKit
 let root = URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
 let assets = root.appendingPathComponent("Husk/Husk/Assets.xcassets")
 let size = NSSize(width: 1160, height: 725)
-let amber = NSColor(red: 0.91, green: 0.643, blue: 0.361, alpha: 1)
-let teal = NSColor(red: 0.467, green: 0.839, blue: 0.824, alpha: 1)
+var isDark = false
+var amber: NSColor { isDark ? NSColor(red: 0.91, green: 0.643, blue: 0.361, alpha: 1) : NSColor(red: 0.50, green: 0.30, blue: 0.10, alpha: 1) }
+var teal: NSColor { isDark ? NSColor(red: 0.467, green: 0.839, blue: 0.824, alpha: 1) : NSColor(red: 0.12, green: 0.44, blue: 0.43, alpha: 1) }
+var ink: NSColor { isDark ? .white : NSColor(white: 0.12, alpha: 1) }
+var mutedInk: NSColor { isDark ? .lightGray : NSColor(white: 0.38, alpha: 1) }
 
 func panel(_ rect: NSRect, radius: CGFloat = 24) {
     let shape = NSBezierPath(roundedRect: rect, xRadius: radius, yRadius: radius)
-    NSColor(white: 0.14, alpha: 1).setFill(); shape.fill()
-    NSColor(white: 1, alpha: 0.13).setStroke(); shape.lineWidth = 2; shape.stroke()
+    NSColor(white: isDark ? 0.14 : 1, alpha: 1).setFill(); shape.fill()
+    NSColor(white: isDark ? 1 : 0, alpha: 0.13).setStroke(); shape.lineWidth = 2; shape.stroke()
 }
-func text(_ value: String, x: CGFloat, y: CGFloat, font: NSFont, color: NSColor = .white) {
-    (value as NSString).draw(at: NSPoint(x: x, y: y), withAttributes: [.font: font, .foregroundColor: color])
+func text(_ value: String, x: CGFloat, y: CGFloat, font: NSFont, color: NSColor? = nil) {
+    (value as NSString).draw(at: NSPoint(x: x, y: y), withAttributes: [.font: font, .foregroundColor: color ?? ink])
 }
 func symbol(_ name: String, rect: NSRect, tint: NSColor) {
     guard let image = NSImage(systemSymbolName: name, accessibilityDescription: nil)?
@@ -27,20 +30,24 @@ func symbol(_ name: String, rect: NSRect, tint: NSColor) {
     colored.draw(in: rect)
 }
 func render(_ name: String, draw: () -> Void) throws {
-    guard let bitmap = NSBitmapImageRep(bitmapDataPlanes: nil, pixelsWide: Int(size.width), pixelsHigh: Int(size.height), bitsPerSample: 8, samplesPerPixel: 4, hasAlpha: true, isPlanar: false, colorSpaceName: .deviceRGB, bytesPerRow: 0, bitsPerPixel: 0),
-          let context = NSGraphicsContext(bitmapImageRep: bitmap) else { fatalError("Cannot create illustration") }
-    NSGraphicsContext.saveGraphicsState(); NSGraphicsContext.current = context
-    NSColor(white: 0.075, alpha: 1).setFill(); NSRect(origin: .zero, size: size).fill()
-    NSGradient(colors: [amber.withAlphaComponent(0.18), .clear])!.draw(fromCenter: NSPoint(x: 580, y: 440), radius: 0, toCenter: NSPoint(x: 580, y: 440), radius: 480, options: [.drawsAfterEndingLocation])
-    draw()
-    NSGraphicsContext.restoreGraphicsState()
     let folder = assets.appendingPathComponent(name + ".imageset")
     try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
-    try bitmap.representation(using: .png, properties: [:])!.write(to: folder.appendingPathComponent("artwork.png"))
+    for appearance in ["light", "dark"] {
+        isDark = appearance == "dark"
+        guard let bitmap = NSBitmapImageRep(bitmapDataPlanes: nil, pixelsWide: Int(size.width), pixelsHigh: Int(size.height), bitsPerSample: 8, samplesPerPixel: 4, hasAlpha: true, isPlanar: false, colorSpaceName: .deviceRGB, bytesPerRow: 0, bitsPerPixel: 0),
+              let context = NSGraphicsContext(bitmapImageRep: bitmap) else { fatalError("Cannot create illustration") }
+        NSGraphicsContext.saveGraphicsState(); NSGraphicsContext.current = context
+        context.cgContext.clear(CGRect(origin: .zero, size: size))
+        draw()
+        NSGraphicsContext.restoreGraphicsState()
+        try bitmap.representation(using: .png, properties: [:])!.write(to: folder.appendingPathComponent("artwork-" + appearance + ".png"))
+    }
     let catalog = """
-    {"images":[{"filename":"artwork.png","idiom":"universal"}],"info":{"author":"xcode","version":1}}
+    {"images":[{"filename":"artwork-light.png","idiom":"universal"},{"filename":"artwork-dark.png","idiom":"universal","appearances":[{"appearance":"luminosity","value":"dark"}]}],"info":{"author":"xcode","version":1}}
     """
     try catalog.write(to: folder.appendingPathComponent("Contents.json"), atomically: true, encoding: .utf8)
+    let oldArtwork = folder.appendingPathComponent("artwork.png")
+    if FileManager.default.fileExists(atPath: oldArtwork.path) { try FileManager.default.removeItem(at: oldArtwork) }
 }
 
 try render("TourWelcome") {
@@ -76,8 +83,8 @@ try render("TourAI") {
         symbol(index == 0 ? "cpu" : index == 1 ? "bubble.left.and.bubble.right" : "arrow.triangle.branch",
                rect: NSRect(x: card.2 + 24, y: card.3 + 130, width: 44, height: 44), tint: card.4)
         text(card.0, x: card.2 + 24, y: card.3 + 82, font: .systemFont(ofSize: 26, weight: .semibold))
-        text(card.1, x: card.2 + 24, y: card.3 + 48, font: .systemFont(ofSize: 16), color: .lightGray)
+        text(card.1, x: card.2 + 24, y: card.3 + 48, font: .systemFont(ofSize: 16), color: mutedInk)
         symbol(index == 0 ? "eye" : "lock", rect: NSRect(x: card.2 + 208, y: card.3 + 148, width: 22, height: 22), tint: card.4)
     }
 }
-print("Generated 3 local tour illustrations.")
+print("Generated 3 transparent tour illustrations in light and dark variants.")

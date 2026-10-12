@@ -24,6 +24,7 @@ struct ContentView: View {
         Group {
             if hasCompletedOnboarding {
                 mainShell
+                    .frame(minWidth: HuskTheme.minWindowWidth, minHeight: HuskTheme.minWindowHeight)
             } else {
                 OnboardingView {
                     withAnimation(reduceMotion ? nil : .easeInOut(duration: 0.25)) {
@@ -31,9 +32,9 @@ struct ContentView: View {
                     }
                 }
                 .environment(permissions)
+                .frame(width: HuskTheme.onboardingWidth, height: HuskTheme.onboardingHeight)
             }
         }
-        .frame(minWidth: HuskTheme.minWindowWidth, minHeight: HuskTheme.minWindowHeight)
         .preferredColorScheme(appearance == "dark" ? .dark : appearance == "light" ? .light : nil)
         .ignoresSafeArea(edges: .top)
         .environment(permissions)

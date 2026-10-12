@@ -15,7 +15,6 @@ struct OnboardingView: View {
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background { HuskBackground() }
     }
 }
 
@@ -38,20 +37,16 @@ struct HuskWelcomeTour: View {
     ]
 
     var body: some View {
-        VStack(spacing: 16) {
-            TourSlideshowView(pages: Self.pages, width: 560, initialPageIndex: initialPageIndex,
-                              continueButtonTitle: "Continue", finishButtonTitle: "Continue to setup",
-                              buttonTint: .huskPrimary, buttonForegroundColor: .huskOnPrimary,
-                              reduceMotion: reduceMotionOverride,
-                              onFinish: onContinue, onClose: onContinue)
-                .frame(height: 560)
-                // TourKit's artwork and text panel intentionally use a dark palette in either app appearance.
-                .environment(\.colorScheme, .dark)
-            Text("No telemetry. No account required.")
-                .font(.callout).foregroundStyle(.secondary)
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .padding(.top, 20).padding(.bottom, 16)
+        TourSlideshowView(pages: Self.pages, width: 560, initialPageIndex: initialPageIndex,
+                          continueButtonTitle: "Continue", finishButtonTitle: "Continue to setup",
+                          buttonTint: .huskPrimary, buttonForegroundColor: .huskOnPrimary,
+                          reduceMotion: reduceMotionOverride,
+                          showsCardBackground: false,
+                          onFinish: onContinue, onClose: onContinue)
+            .frame(height: 560)
+            // Keep tour controls below the native traffic lights.
+            .padding(.top, 36).padding(.bottom, 4)
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 }
 
@@ -108,4 +103,4 @@ struct OnboardingPermissionView: View {
     }
 }
 
-#Preview { OnboardingView(onFinished: {}).environment(PermissionService()).frame(width: 960, height: 640) }
+#Preview { OnboardingView(onFinished: {}).environment(PermissionService()).frame(width: 560, height: 600) }

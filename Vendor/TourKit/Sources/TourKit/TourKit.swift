@@ -65,9 +65,11 @@ public struct TourSlideshowView: View {
     let buttonTint: Color?
     let buttonForegroundColor: Color
     private let reduceMotionOverride: Bool?
+    private let showsCardBackground: Bool
     let onFinish: (() -> Void)?
     let onClose: (() -> Void)?
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.colorScheme) private var colorScheme
     @Environment(\.accessibilityReduceMotion) private var systemReduceMotion
     private var reduceMotion: Bool { reduceMotionOverride ?? systemReduceMotion }
     @State private var currentIndex: Int
@@ -83,6 +85,7 @@ public struct TourSlideshowView: View {
         buttonTint: Color? = nil,
         buttonForegroundColor: Color = .white,
         reduceMotion: Bool? = nil,
+        showsCardBackground: Bool = true,
         onFinish: (() -> Void)? = nil,
         onClose: (() -> Void)? = nil
     ) {
@@ -95,6 +98,7 @@ public struct TourSlideshowView: View {
         self.buttonTint = buttonTint
         self.buttonForegroundColor = buttonForegroundColor
         self.reduceMotionOverride = reduceMotion
+        self.showsCardBackground = showsCardBackground
         self.onFinish = onFinish
         self.onClose = onClose
         _currentIndex = State(initialValue: Self.clamped(initialPageIndex, pageCount: pages.count))
@@ -115,11 +119,11 @@ public struct TourSlideshowView: View {
                     imageSection
                     bottomPanel
                 }
-                .background(Color(white: 0.10))
+                .background(showsCardBackground ? panelColor : .clear)
                 .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
                 .overlay {
                     RoundedRectangle(cornerRadius: 20, style: .continuous)
-                        .stroke(Color.white.opacity(0.10), lineWidth: 1)
+                        .stroke(Color.primary.opacity(showsCardBackground ? 0.10 : 0), lineWidth: 1)
                 }
             }
         }
@@ -128,6 +132,10 @@ public struct TourSlideshowView: View {
         // page-indicator's active-dot slide. Layout size never changes
         // because the hosting window is locked to the tallest slide.
         .animation(reduceMotion ? nil : .easeInOut(duration: 0.25), value: currentIndex)
+    }
+
+    private var panelColor: Color {
+        colorScheme == .dark ? Color(white: 0.10) : Color.white
     }
 
     private var emptyState: some View {
@@ -166,20 +174,22 @@ public struct TourSlideshowView: View {
                 .id(currentIndex)
                 .transition(reduceMotion ? .identity : .opacity)
 
-            LinearGradient(
-                stops: [
-                    .init(color: .clear, location: 0),
-                    .init(color: Color(white: 0.10).opacity(0.15), location: 0.25),
-                    .init(color: Color(white: 0.10).opacity(0.45), location: 0.50),
-                    .init(color: Color(white: 0.10).opacity(0.80), location: 0.75),
-                    .init(color: Color(white: 0.10), location: 1.0)
-                ],
-                startPoint: .top,
-                endPoint: .bottom
-            )
-            .frame(height: 220)
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
-            .allowsHitTesting(false)
+            if showsCardBackground {
+                LinearGradient(
+                    stops: [
+                        .init(color: .clear, location: 0),
+                        .init(color: panelColor.opacity(0.15), location: 0.25),
+                        .init(color: panelColor.opacity(0.45), location: 0.50),
+                        .init(color: panelColor.opacity(0.80), location: 0.75),
+                        .init(color: panelColor, location: 1.0)
+                    ],
+                    startPoint: .top,
+                    endPoint: .bottom
+                )
+                .frame(height: 220)
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
+                .allowsHitTesting(false)
+            }
 
             PageIndicator(totalPages: pages.count, currentIndex: currentIndex)
                 .padding(.bottom, 14)
@@ -191,7 +201,7 @@ public struct TourSlideshowView: View {
         .frame(width: width, height: imageHeight)
     }
 
-    // MARK: - Bottom panel (dark area with text + button)
+    // MARK: - Text and primary action
 
     private var bottomPanel: some View {
         let currentPage = pages[currentIndex]
@@ -200,14 +210,14 @@ public struct TourSlideshowView: View {
             Text(currentPage.title, tableName: currentPage.tableName, bundle: currentPage.resolvedStringsBundle)
                 .font(.system(size: 28, weight: .bold))
                 .multilineTextAlignment(.center)
-                .foregroundStyle(.white)
+                .foregroundStyle(.primary)
                 .accessibilityAddTraits(.isHeader)
                 .fixedSize(horizontal: false, vertical: true)
 
             Text(currentPage.description, tableName: currentPage.tableName, bundle: currentPage.resolvedStringsBundle)
                 .font(.body)
                 .multilineTextAlignment(.center)
-                .foregroundStyle(Color.white.opacity(0.70))
+                .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
                 .padding(.top, 6)
 
@@ -294,17 +304,17 @@ public struct TourSlideshowView: View {
         Button(action: action) {
             Image(systemName: systemName)
                 .font(.system(size: 13, weight: .semibold))
-                .foregroundStyle(.white.opacity(0.88))
+                .foregroundStyle(Color.primary.opacity(0.88))
                 .frame(width: 32, height: 32)
                 .background {
                     if #available(macOS 26.0, iOS 26.0, *) {
                         Circle()
                             .fill(.ultraThinMaterial)
                             .overlay {
-                                Circle().stroke(Color.white.opacity(0.25), lineWidth: 0.5)
+                                Circle().stroke(Color.primary.opacity(0.15), lineWidth: 0.5)
                             }
                     } else {
-                        Circle().fill(Color.white.opacity(0.15))
+                        Circle().fill(Color.primary.opacity(0.08))
                     }
                 }
                 .contentShape(Circle())
@@ -590,13 +600,13 @@ private struct TourBottomPanelSizingView: View {
             Text(page.title, tableName: page.tableName, bundle: page.resolvedStringsBundle)
                 .font(.system(size: 28, weight: .bold))
                 .multilineTextAlignment(.center)
-                .foregroundStyle(.white)
+                .foregroundStyle(.primary)
                 .fixedSize(horizontal: false, vertical: true)
 
             Text(page.description, tableName: page.tableName, bundle: page.resolvedStringsBundle)
                 .font(.body)
                 .multilineTextAlignment(.center)
-                .foregroundStyle(Color.white.opacity(0.70))
+                .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
                 .padding(.bottom, 6)
 
@@ -626,7 +636,7 @@ public struct PageIndicator: View {
         HStack(spacing: 7) {
             ForEach(0..<totalPages, id: \.self) { index in
                 Capsule(style: .continuous)
-                    .fill(index == currentIndex ? Color.white.opacity(0.95) : Color.white.opacity(0.32))
+                    .fill(index == currentIndex ? Color.primary.opacity(0.85) : Color.primary.opacity(0.25))
                     .frame(width: index == currentIndex ? 24 : 8, height: 8)
             }
         }

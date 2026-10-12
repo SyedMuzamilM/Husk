@@ -11,6 +11,8 @@ enum HuskTheme {
     static let railWidth: CGFloat = 64
     static let minWindowWidth: CGFloat = 960
     static let minWindowHeight: CGFloat = 640
+    static let onboardingWidth: CGFloat = 560
+    static let onboardingHeight: CGFloat = 600
     static let cardRadius: CGFloat = 20
     static let pillRadius: CGFloat = 999
     static let contentPadding: CGFloat = 24

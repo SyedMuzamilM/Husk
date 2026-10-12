@@ -9,6 +9,7 @@ The library source and MIT license are retained locally so builds use reviewed c
 Local changes:
 
 - Optional button colors allow Husk's amber palette.
+- Optional card background and fade can be disabled for an embedded, background-free tour. Text, controls and page indicators use semantic colors in both appearances.
 - Reduce Motion disables slide and indicator animations. The system preference is the default; an optional override lets the fixture runner exercise both policies without changing host settings.
 - Back and skip controls have spoken labels and hints; Left Arrow goes back. The hidden first-page back control is disabled and hidden from accessibility.
 - Decorative artwork is hidden from accessibility and slide headings are marked as headers.

@@ -7,14 +7,16 @@ import SwiftUI
 
 @main
 struct HuskApp: App {
+    @AppStorage("husk.hasCompletedOnboarding") private var hasCompletedOnboarding = false
     @FocusedValue(\.huskCleanModel) private var cleanModel
     var body: some Scene {
         WindowGroup {
             ContentView()
 
         }
-        .defaultSize(width: 1120, height: 740)
-        .windowResizability(.contentMinSize)
+        .defaultSize(width: hasCompletedOnboarding ? 1120 : HuskTheme.onboardingWidth,
+                     height: hasCompletedOnboarding ? 740 : HuskTheme.onboardingHeight)
+        .windowResizability(.contentSize)
         .windowStyle(.hiddenTitleBar)
         .windowToolbarStyle(.unifiedCompact(showsTitle: false))
         .commands {
