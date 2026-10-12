@@ -85,6 +85,7 @@ struct AnalyzeView: View {
                         if node.isDirectory { Button("Open", systemImage: "chevron.right") { model.drill(into: node) }.disabled(model.isLoading) }
                     }.width(80)
                 }
+                .frame(maxHeight: .infinity)
                 .scrollContentBackground(.hidden)
                 .background(Color.huskSurface.opacity(0.92), in: .rect(cornerRadius: HuskTheme.cardRadius))
                 .clipShape(.rect(cornerRadius: HuskTheme.cardRadius))

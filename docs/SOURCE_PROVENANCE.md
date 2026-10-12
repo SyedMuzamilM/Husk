@@ -4,7 +4,9 @@ This inventory is preparation for publication, not legal clearance.
 
 | Material | Current source | Publication action |
 |---|---|---|
-| Swift application and tests | Local repository history and current implementation work | Owner must confirm ownership of earlier code and acceptable contribution terms. No third-party runtime dependency is declared. |
+| Swift application and tests | Local repository history and current implementation work | Owner must confirm ownership of earlier code and acceptable contribution terms. TourKit is listed separately below. |
+| TourKit onboarding | Local v1.0.0 snapshot, upstream commit `0cac3a51069e105286635601e82117c195058ee9`, under Vendor/TourKit | MIT notice preserved in Vendor/TourKit/LICENSE and bundled as TourKit-LICENSE.txt. Local accessibility, motion and button-color patches are documented beside the source. No sample-app code or artwork is bundled. |
+| Tour illustrations | scripts/generate-tour-artwork.swift using the existing Husk logo and system symbols | Reproducible original composition; inherits existing logo and Apple-symbol rights requirements. No upstream TourKit images were copied. |
 | App icon and Husk brand images | Existing Assets.xcassets and root husk-logo.png | Confirm creation source and commercial/reuse rights. Duplicate unassigned icon variants were removed; assigned assets remain. |
 | stitch_husk_macos_interface_design | Existing design reference/export directory | Confirm export terms and rights to all images/fonts before including it publicly. It is not a Swift package dependency. |
 | Product/research documents | Local docs and cited official sources | Review quotations and old market/pricing claims. Planning documents now identify themselves as proposals. |

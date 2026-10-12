@@ -1,6 +1,6 @@
 # Husk
 
-Husk is an experimental native macOS utility for reviewing storage, moving selected items to Trash, uninstalling apps, and observing system processes. It uses Swift 6, SwiftUI, Foundation, AppKit, and Darwin. There are no external runtime dependencies, telemetry, privileged helpers, or network requests.
+Husk is an experimental native macOS utility for reviewing storage, moving selected items to Trash, uninstalling apps, and observing system processes. It uses Swift 6, SwiftUI, Foundation, AppKit, and Darwin. Onboarding uses a reviewed local snapshot of [TourKit](https://github.com/rampatra/TourKit), licensed under MIT. There is no telemetry, privileged helper or network client.
 
 Requires macOS 14 or later and Xcode 26.2 or later with Swift 6.2. Only the current development machine has been verified. This is not a signed public release or a completed security certification.
 
@@ -12,6 +12,7 @@ Requires macOS 14 or later and Xcode 26.2 or later with Swift 6.2. Only the curr
 - Nested app discovery and exact bundle-ID data associations. Shared group containers and fuzzy name matches are excluded; personal data requires acknowledgement.
 - CPU, estimated memory, pressure/swap when available, actual volume free capacity, and process CPU/RSS. Quit requests revalidate process identity and user ownership.
 - Quick Look troubleshooting, system/light/dark appearance, persistent exclusions, and optional local operation history.
+- Apple-style TourKit welcome slideshow with Husk artwork, back/skip controls, keyboard navigation and Reduce Motion. Optional disk-access setup follows the tour; replay it from Settings. [Integration and layout verification](docs/ONBOARDING_AND_LAYOUT_VERIFICATION_2026-10-12.md).
 
 Project cache discovery is opt-in and inspection-only. Bulk project/dependency removal, whole AI histories/models/VMs, automatic deletion, emptying Trash, MCP, Rust, SQLite, billing, and menu-bar monitoring are not implemented. Older product documents describe proposals, not shipped functionality.
 
@@ -31,7 +32,7 @@ Unsigned local builds may need macOS privacy permissions. Full Disk Access is op
 
 Husk keeps its original compact rail, warm amber actions and rounded panels, with system, light and dark appearance. AI Storage inventories recognized caches, sessions, working copies, models and installed tools. Only verified cache leaves can be selected for reviewed cleanup. Sessions, model weights, worktrees and version stores remain inspection-only. See [AI storage policy and sources](docs/AI_STORAGE.md) and the [remaining policy decisions](docs/AI_STORAGE_DISCUSSION.html).
 
-Tests use disposable fixtures and inject the move operation; they never send existing user data to Trash. Build Release with the same command and `-configuration Release`. Run `scripts/verify.sh` for the full local verification sequence, including a universal Release build. Run `scripts/profile-sizing.sh` for an opt-in 100K-entry service memory check using disposable fixtures; its default RSS budget is 160 MiB. This profiles the sizing service, not the full GUI. After a Debug build, run `scripts/ui-smoke.sh` to capture fixture screens in light/dark mode at 960×640 and 1200×720. The local runner requires Screen Recording access, verifies visible control labels and clicks Select Safe. It never runs cleanup. Set `HUSK_UI_ASSETS` if Assets.car is outside the default `/tmp/husk-ui-build` location.
+Tests use disposable fixtures and inject the move operation; they never send existing user data to Trash. Build Release with the same command and `-configuration Release`. Run `scripts/verify.sh` for the full local verification sequence, including a universal Release build. Run `scripts/profile-sizing.sh` for an opt-in 100K-entry service memory check using disposable fixtures; its default RSS budget is 160 MiB. This profiles the sizing service, not the full GUI. After a Debug build, run `scripts/ui-smoke.sh` to capture fixture screens in light/dark mode at 960×640 and 1200×720. The local runner requires Screen Recording access, verifies visible control labels, tests scan-to-results table heights with no selection, clicks Select Safe and walks the tour with mouse/keyboard input. It never runs cleanup. Set `HUSK_UI_ASSETS` if Assets.car is outside the default `/tmp/husk-ui-build` location.
 
 ## Safety limits
 

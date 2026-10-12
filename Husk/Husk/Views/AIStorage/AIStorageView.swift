@@ -81,17 +81,8 @@ struct AIStorageView: View {
                     Spacer()
                     Button("Inspect repository…", systemImage: "arrow.triangle.branch") { choosingRepository = true }.disabled(model.isBusy)
                 }
-                if !model.worktrees.isEmpty {
-                    List(model.worktrees) { record in
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text(record.path).font(.body.monospaced()).textSelection(.enabled)
-                            Text((record.branch ?? "Detached HEAD") + (record.locked ? " · Locked" : "") + " · " + record.status)
-                                .foregroundStyle(.secondary)
-                        }.padding(.vertical, 4)
-                    }.frame(minHeight: 100, maxHeight: 180)
-                }
             }
-            HSplitView {
+            HuskSplitView {
                 Table(model.filteredItems, selection: $model.inspectedID) {
                     TableColumn("Select") { item in
                         Toggle("Select " + item.rule.tool + " cache", isOn: Binding(get: { model.selectedIDs.contains(item.id) }, set: { _ in model.toggle(item) }))
@@ -117,8 +108,8 @@ struct AIStorageView: View {
                             description: Text("Only existing, recognized default locations are listed. Custom tool homes and cloud-only data are not scanned."))
                     }
                 }
-                .frame(minWidth: 380, idealWidth: 420)
-                inspector.frame(minWidth: 240, idealWidth: 270, maxWidth: .infinity)
+                .frame(minWidth: 380, idealWidth: 420, maxHeight: .infinity)
+                inspector.frame(minWidth: 240, idealWidth: 270, maxWidth: .infinity, maxHeight: .infinity)
             }
             if let issues = model.report?.issues, !issues.isEmpty {
                 DisclosureGroup("\(issues.count) discovery issues") {
@@ -142,7 +133,21 @@ struct AIStorageView: View {
 
     private var inspector: some View {
         ScrollView {
-            if let item = model.inspectedItem {
+            if model.kind == .worktrees, !model.worktrees.isEmpty {
+                VStack(alignment: .leading, spacing: 18) {
+                    Label("Registered worktrees", systemImage: "arrow.triangle.branch").font(.title3.weight(.semibold))
+                    Text("Inspection only. A clean status does not establish inactivity.").font(.callout).foregroundStyle(.secondary)
+                    ForEach(model.worktrees) { record in
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text(record.path).font(.body.monospaced()).textSelection(.enabled)
+                            Text(record.branch ?? "Detached HEAD").font(.headline)
+                            if record.locked { Label("Locked", systemImage: "lock").foregroundStyle(Color.huskAccentText) }
+                            Text(record.status).font(.callout).foregroundStyle(.secondary)
+                            Divider()
+                        }
+                    }
+                }.padding(18).frame(maxWidth: .infinity, alignment: .leading)
+            } else if let item = model.inspectedItem {
                 VStack(alignment: .leading, spacing: 16) {
                     Label(item.rule.tool, systemImage: item.rule.kind.systemImage).font(.title3.weight(.semibold))
                     SafetyBadge(label: item.safety)

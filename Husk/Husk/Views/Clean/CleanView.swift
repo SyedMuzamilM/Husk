@@ -81,7 +81,7 @@ struct CleanView: View {
 
     private var results: some View {
         VStack(spacing: 14) {
-            HSplitView {
+            HuskSplitView {
                 VStack(spacing: 12) {
                     HuskSearchField(prompt: "Search caches or paths", text: $model.searchText)
                     Picker("Category", selection: $model.selectedFilter) {
@@ -126,8 +126,8 @@ struct CleanView: View {
                 }.padding(12)
                 .background(Color.huskSurface.opacity(0.92), in: .rect(cornerRadius: HuskTheme.cardRadius))
                 .overlay(RoundedRectangle(cornerRadius: HuskTheme.cardRadius).strokeBorder(Color.huskBorder))
-                .frame(minWidth: 460, idealWidth: 490)
-                inspector.frame(minWidth: 240, idealWidth: 280, maxWidth: .infinity)
+                .frame(minWidth: 460, idealWidth: 490, maxHeight: .infinity)
+                inspector.frame(minWidth: 240, idealWidth: 280, maxWidth: .infinity, maxHeight: .infinity)
             }
             HStack(spacing: 12) {
                 Image(systemName: "tray.full").font(.title2).foregroundStyle(Color.huskAccentText)
@@ -154,6 +154,7 @@ struct CleanView: View {
                 .background(Color.huskSurface, in: .rect(cornerRadius: HuskTheme.cardRadius))
         } else {
             ContentUnavailableView("Inspect an item", systemImage: "sidebar.trailing", description: Text("Select a row to review its path, risk and largest contents."))
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .background(Color.huskSurface, in: .rect(cornerRadius: HuskTheme.cardRadius))
         }
     }

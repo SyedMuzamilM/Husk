@@ -7,9 +7,9 @@ struct AppsView: View {
             HuskPageHeader(title: "Applications", subtitle: "Review an app and its exact bundle ID matches before removal.") {
                 Button("Refresh", systemImage: "arrow.clockwise") { model.loadApps() }.disabled(model.isLoadingApps || model.isUninstalling)
             }
-            HSplitView {
-                appList.frame(minWidth: 240, idealWidth: 270)
-                detail.frame(minWidth: 380, maxWidth: .infinity)
+            HuskSplitView {
+                appList.frame(minWidth: 240, idealWidth: 270, maxHeight: .infinity)
+                detail.frame(minWidth: 380, maxWidth: .infinity, maxHeight: .infinity)
             }.padding(.horizontal, HuskTheme.contentPadding).padding(.bottom, HuskTheme.contentPadding)
         }
         .onAppear { if model.apps.isEmpty && !AppRuntime.isXcodePreview && !AppRuntime.isUIFixture { model.loadApps() } }
@@ -88,6 +88,7 @@ struct AppsView: View {
             }.background(Color.huskSurface, in: .rect(cornerRadius: HuskTheme.cardRadius))
         } else {
             ContentUnavailableView("Select an application", systemImage: "square.stack.3d.up", description: Text("Inspect its size and related files. Preferences and personal data require a separate review."))
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .background(Color.huskSurface, in: .rect(cornerRadius: HuskTheme.cardRadius))
         }
     }

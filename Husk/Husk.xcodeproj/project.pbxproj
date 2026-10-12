@@ -6,6 +6,10 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+        544F55524B49540000000001 /* TourKit in Frameworks */ = {isa = PBXBuildFile; productRef = 544F55524B49540000000003 /* TourKit */; };
+/* End PBXBuildFile section */
+
 /* Begin PBXFileReference section */
 		096B274B30061549005E7764 /* Husk.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Husk.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
@@ -23,6 +27,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+                544F55524B49540000000001 /* TourKit in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -65,6 +70,7 @@
 			);
 			name = Husk;
 			packageProductDependencies = (
+                544F55524B49540000000003 /* TourKit */,
 			);
 			productName = Husk;
 			productReference = 096B274B30061549005E7764 /* Husk.app */;
@@ -95,6 +101,9 @@
 			mainGroup = 096B274230061549005E7764;
 			minimizedProjectReferenceProxies = 1;
 			preferredProjectObjectVersion = 77;
+            packageReferences = (
+                544F55524B49540000000002 /* XCLocalSwiftPackageReference "TourKit" */,
+            );
 			productRefGroup = 096B274C30061549005E7764 /* Products */;
 			projectDirPath = "";
 			projectRoot = "";
@@ -123,6 +132,21 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXSourcesBuildPhase section */
+
+/* Begin XCLocalSwiftPackageReference section */
+        544F55524B49540000000002 /* XCLocalSwiftPackageReference "TourKit" */ = {
+            isa = XCLocalSwiftPackageReference;
+            relativePath = ../Vendor/TourKit;
+        };
+/* End XCLocalSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+        544F55524B49540000000003 /* TourKit */ = {
+            isa = XCSwiftPackageProductDependency;
+            package = 544F55524B49540000000002 /* XCLocalSwiftPackageReference "TourKit" */;
+            productName = TourKit;
+        };
+/* End XCSwiftPackageProductDependency section */
 
 /* Begin XCBuildConfiguration section */
 		096B27563006154B005E7764 /* Debug */ = {

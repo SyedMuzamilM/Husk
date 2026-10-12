@@ -11,7 +11,11 @@ while IFS= read -r source; do
     [[ "$source" == */HuskApp.swift ]] && continue
     TASK_SOURCES+=("$source")
 done < <(rg --files "$TASK_ROOT/Husk/Husk" -g '*.swift')
-xcrun swiftc -swift-version 6 -parse-as-library "${TASK_SOURCES[@]}" "$TASK_ROOT/scripts/ui-smoke.swift" -o "$TASK_BUILD/HuskUISmoke.app/Contents/MacOS/HuskUISmoke"
+xcrun swiftc -swift-version 6 -parse-as-library -emit-module -emit-library -static -module-name TourKit \
+    "$TASK_ROOT/Vendor/TourKit/Sources/TourKit/TourKit.swift" \
+    -emit-module-path "$TASK_BUILD/TourKit.swiftmodule" -o "$TASK_BUILD/libTourKit.a"
+xcrun swiftc -swift-version 6 -parse-as-library -I "$TASK_BUILD" -L "$TASK_BUILD" -lTourKit \
+    "${TASK_SOURCES[@]}" "$TASK_ROOT/scripts/ui-smoke.swift" -o "$TASK_BUILD/HuskUISmoke.app/Contents/MacOS/HuskUISmoke"
 # Bundle the brand asset when a Debug build is available.
 TASK_ASSETS=${HUSK_UI_ASSETS:-/tmp/husk-ui-build/Build/Products/Debug/Husk.app/Contents/Resources/Assets.car}
 if [[ -f "$TASK_ASSETS" ]]; then cp "$TASK_ASSETS" "$TASK_BUILD/HuskUISmoke.app/Contents/Resources/Assets.car"; fi

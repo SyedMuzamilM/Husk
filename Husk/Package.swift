@@ -8,7 +8,7 @@ let package = Package(
     targets: [
         .target(
             name: "HuskCore", path: "Husk",
-            exclude: ["Assets.xcassets", "Views", "ContentView.swift", "HuskApp.swift"],
+            exclude: ["Assets.xcassets", "Views", "ContentView.swift", "HuskApp.swift", "TourKit-LICENSE.txt"],
             sources: ["Models", "Services", "Theme"]
         ),
         .testTarget(name: "HuskCoreTests", dependencies: ["HuskCore"], path: "Tests/HuskCoreTests")

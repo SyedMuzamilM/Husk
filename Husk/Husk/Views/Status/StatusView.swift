@@ -36,6 +36,7 @@ struct StatusView: View {
                         }.disabled(!process.canTerminate).help("Quit " + process.name)
                     }.width(75)
                 }
+                .frame(maxHeight: .infinity)
                 .scrollContentBackground(.hidden)
                 .background(Color.huskSurface.opacity(0.92), in: .rect(cornerRadius: HuskTheme.cardRadius))
                 .clipShape(.rect(cornerRadius: HuskTheme.cardRadius))
