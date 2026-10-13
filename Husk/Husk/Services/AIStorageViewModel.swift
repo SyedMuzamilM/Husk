@@ -16,7 +16,13 @@ final class AIStorageViewModel {
     var worktrees: [GitWorktree] = []
     var isInspectingWorktrees = false
     private var task: Task<Void, Never>?
+    private var worktreeTask: Task<Void, Never>?
     private var generation = UUID()
+    private let scanOperation: @Sendable () async throws -> AIStorageReport
+
+    init(scan: @escaping @Sendable () async throws -> AIStorageReport = { try await AIStorageService.scan() }) {
+        scanOperation = scan
+    }
 
     var items: [AIStorageItem] { report?.items ?? [] }
     var filteredItems: [AIStorageItem] {
@@ -35,18 +41,33 @@ final class AIStorageViewModel {
         removalPlan = nil
         isScanning = true
         errorMessage = nil
-        task = Task {
-            defer { if generation == run { isScanning = false } }
+        let scan = scanOperation
+        task = Task { [weak self] in
             do {
-                let result = try await AIStorageService.scan()
-                guard !Task.isCancelled, generation == run else { return }
+                try Task.checkCancellation()
+                let result = try await scan()
+                guard let self, !Task.isCancelled, generation == run else { return }
                 report = result
                 if !items.contains(where: { $0.id == inspectedID }) { inspectedID = nil }
-            } catch is CancellationError { }
-            catch { errorMessage = error.localizedDescription }
+                isScanning = false
+                task = nil
+            } catch {
+                guard let self, generation == run else { return }
+                if !(error is CancellationError) { errorMessage = error.localizedDescription }
+                isScanning = false
+                task = nil
+            }
         }
     }
-    func cancel() { task?.cancel(); generation = UUID(); isScanning = false }
+    func cancel() {
+        task?.cancel()
+        worktreeTask?.cancel()
+        task = nil
+        worktreeTask = nil
+        generation = UUID()
+        isScanning = false
+        isInspectingWorktrees = false
+    }
     func toggle(_ item: AIStorageItem) {
         guard !isBusy, item.canRemove else { return }
         if selectedIDs.contains(item.id) { selectedIDs.remove(item.id) } else { selectedIDs.insert(item.id) }
@@ -75,13 +96,31 @@ final class AIStorageViewModel {
             }
         } catch { errorMessage = error.localizedDescription }
     }
-    func inspectWorktrees(repository: String) async {
+    func inspectWorktrees(repository: String) {
         guard !isBusy else { return }
+        let run = UUID()
+        generation = run
         isInspectingWorktrees = true
         errorMessage = nil
-        defer { isInspectingWorktrees = false }
-        do { worktrees = try await WorktreeInspectionService.inspect(repository: repository) }
-        catch { errorMessage = error.localizedDescription }
+        worktrees = []
+        worktreeTask = Task { [weak self] in
+            do {
+                try Task.checkCancellation()
+                let records = try await WorktreeInspectionService.inspect(repository: repository)
+                guard let self, generation == run, !Task.isCancelled else { return }
+                worktrees = records
+                isInspectingWorktrees = false
+                worktreeTask = nil
+            } catch {
+                guard let self, generation == run else { return }
+                if !(error is CancellationError) { errorMessage = error.localizedDescription }
+                isInspectingWorktrees = false
+                worktreeTask = nil
+            }
+        }
     }
-    isolated deinit { task?.cancel() }
+    isolated deinit {
+        task?.cancel()
+        worktreeTask?.cancel()
+    }
 }

@@ -1,83 +1,77 @@
-//
-//  AnalyzeViewModel.swift
-//  Husk
-//
-
 import AppKit
 import Foundation
 
-@Observable
-@MainActor
+@Observable @MainActor
 final class AnalyzeViewModel {
     var removalPlan: RemovalPlan?
     var removalResult: TrashResult?
     var includeHidden = true
-    private var generation = UUID()
     var root: DiskNode?
     var pathStack: [DiskNode] = []
     var isLoading = false
+    private(set) var isPreparing = false
+    private(set) var isRemoving = false
     var statusText = "Pick a location to map"
     var errorMessage: String?
     var selectedRootPath: String = NSHomeDirectory()
 
-    private let analyzer = DiskAnalyzer()
+    private var generation = UUID()
     private var task: Task<Void, Never>?
+    private let load: @Sendable (String, Bool) async throws -> DiskNode
+    private let executeRemoval: @Sendable (RemovalPlan) async throws -> TrashResult
 
-    var current: DiskNode? {
-        pathStack.last ?? root
+    init(load: @escaping @Sendable (String, Bool) async throws -> DiskNode = {
+        try await DiskAnalyzer().expand(path: $0, includeHidden: $1)
+    }, executeRemoval: @escaping @Sendable (RemovalPlan) async throws -> TrashResult = {
+        try await RemovalService.shared.execute($0)
+    }) {
+        self.load = load
+        self.executeRemoval = executeRemoval
     }
 
-    var breadcrumbs: [DiskNode] {
-        if let root {
-            return [root] + pathStack
-        }
-        return pathStack
-    }
-
-    var totalBytes: Int64 {
-        current?.byteCount ?? root?.byteCount ?? 0
-    }
+    var current: DiskNode? { pathStack.last ?? root }
+    var breadcrumbs: [DiskNode] { root.map { [$0] + pathStack } ?? pathStack }
+    var totalBytes: Int64 { current?.byteCount ?? 0 }
+    var isBusy: Bool { isLoading || isPreparing || isRemoving }
 
     func scan(path: String? = nil) {
+        guard !isPreparing, !isRemoving else { return }
         let target = path ?? selectedRootPath
         selectedRootPath = target
+        beginLoad(path: target, append: false)
+    }
+
+    func drill(into node: DiskNode) {
+        guard node.isDirectory, !isPreparing, !isRemoving else { return }
+        beginLoad(path: node.path, append: true)
+    }
+
+    private func beginLoad(path: String, append: Bool) {
         task?.cancel()
-        generation = UUID()
-
+        let run = UUID()
+        generation = run
         removalPlan = nil
-        let run = generation
-        task = Task {
-            isLoading = true
-            errorMessage = nil
-            statusText = "Scanning \(URL(fileURLWithPath: target).lastPathComponent)…"
-            pathStack = []
-
+        errorMessage = nil
+        isLoading = true
+        statusText = "\(append ? "Opening" : "Scanning") \(URL(fileURLWithPath: path).lastPathComponent)…"
+        let load = load
+        let hidden = includeHidden
+        task = Task { [weak self] in
             do {
-                let analyzerService = analyzer
-                let model = self
-                let node = try await analyzerService.analyze(rootPath: target, includeHidden: includeHidden) { [weak model] p in
-                    Task { @MainActor [weak model] in
-                        if model?.generation == run { model?.statusText = p }
-                    }
-                }
-                guard generation == run else { return }
-                guard !Task.isCancelled else {
-                    isLoading = false
-                    statusText = "Cancelled"
-                    return
-                }
-                root = node
-                statusText = "\(node.children.count) items · \(ByteFormat.string(for: node.byteCount))"
+                try Task.checkCancellation()
+                let node = try await load(path, hidden)
+                guard let self, generation == run, !Task.isCancelled else { return }
+                if append { pathStack.append(node) }
+                else { root = node; pathStack = [] }
+                statusText = summary(node)
                 isLoading = false
-            } catch is CancellationError {
-                guard generation == run else { return }
-                isLoading = false
-                statusText = "Cancelled"
+                task = nil
             } catch {
-                guard generation == run else { return }
+                guard let self, generation == run else { return }
                 isLoading = false
-                errorMessage = error.localizedDescription
-                statusText = "Failed"
+                statusText = error is CancellationError ? "Cancelled" : "Failed"
+                if !(error is CancellationError) { errorMessage = error.localizedDescription }
+                task = nil
             }
         }
     }
@@ -85,68 +79,22 @@ final class AnalyzeViewModel {
     func cancel() {
         generation = UUID()
         task?.cancel()
+        task = nil
         isLoading = false
-        if root == nil {
-            statusText = "Cancelled"
-        }
-    }
-
-    func drill(into node: DiskNode) {
-        guard node.isDirectory else { return }
-        task?.cancel()
-        generation = UUID()
-
-        removalPlan = nil
-        let run = generation
-        task = Task {
-            isLoading = true
-            statusText = "Opening \(node.name)…"
-            errorMessage = nil
-
-            do {
-                let expanded = try await analyzer.expand(path: node.path, includeHidden: includeHidden)
-                guard generation == run else { return }
-                guard !Task.isCancelled else {
-                    isLoading = false
-                    return
-                }
-                pathStack.append(expanded)
-                isLoading = false
-                statusText = "\(expanded.children.count) items · \(ByteFormat.string(for: expanded.byteCount))"
-            } catch is CancellationError {
-                guard generation == run else { return }
-                isLoading = false
-                statusText = "Cancelled"
-            } catch {
-                guard generation == run else { return }
-                if !node.children.isEmpty {
-                    pathStack.append(node)
-                    statusText = node.path
-                } else {
-                    errorMessage = error.localizedDescription
-                    statusText = "Failed"
-                }
-                isLoading = false
-            }
-        }
+        statusText = current.map(summary) ?? "Cancelled"
+        if let root { selectedRootPath = root.path }
     }
 
     func goToBreadcrumb(index: Int) {
+        guard !isPreparing, !isRemoving else { return }
         cancel()
-        if index <= 0 {
-            pathStack = []
-            if let root {
-                statusText = "\(root.children.count) items · \(ByteFormat.string(for: root.byteCount))"
-            }
-            return
-        }
-        let stackIndex = index - 1
-        if stackIndex < pathStack.count {
-            pathStack = Array(pathStack.prefix(stackIndex + 1))
-            if let current {
-                statusText = "\(current.children.count) items · \(ByteFormat.string(for: current.byteCount))"
-            }
-        }
+        if index <= 0 { pathStack = [] }
+        else if index <= pathStack.count { pathStack = Array(pathStack.prefix(index)) }
+        if let current { statusText = summary(current) }
+    }
+
+    private func summary(_ node: DiskNode) -> String {
+        "\(node.children.count) items · \(ByteFormat.string(for: node.byteCount))"
     }
 
     func reveal(_ path: String) {
@@ -154,20 +102,32 @@ final class AnalyzeViewModel {
     }
 
     func prepareRemoval(path: String, bytes: Int64) async {
+        guard !isBusy else { return }
+        isPreparing = true
+        defer { isPreparing = false }
         let run = generation
         let plan = await RemovalService.shared.prepare([
             RemovalCandidate(path: path, bytes: bytes, safety: .caution,
                 reason: "User-selected storage. May contain irreplaceable personal data.", ownerBundleID: CleanScanner.ownerBundleID(for: path))
         ], title: "Review storage removal")
-        guard generation == run else { return }
+        guard generation == run, !Task.isCancelled else { return }
         removalPlan = plan
     }
 
     func trash(_ plan: RemovalPlan) async {
+        guard !isBusy else { return }
+        isRemoving = true
+        let run = generation
+        defer { isRemoving = false }
         do {
-            let result = try await RemovalService.shared.execute(plan)
+            let result = try await executeRemoval(plan)
             removalResult = result
-            if !result.successPaths.isEmpty { scan(path: current?.path ?? selectedRootPath) }
+            isRemoving = false
+            if generation == run, !Task.isCancelled, !result.successPaths.isEmpty {
+                scan(path: current?.path ?? selectedRootPath)
+            }
         } catch { errorMessage = error.localizedDescription }
     }
+
+    isolated deinit { task?.cancel() }
 }

@@ -12,6 +12,7 @@ final class PermissionService {
     private(set) var hasFullDiskAccess: Bool = false
     private(set) var lastChecked: Date?
     private(set) var isChecking: Bool = false
+    private var task: Task<Void, Never>?
 
     /// Never block the main thread or app launch with TCC-sensitive directory listings.
     init() {
@@ -23,22 +24,24 @@ final class PermissionService {
         isChecking = true
 
         // Previews: skip heavy/TCC probes so the host app can launch instantly.
-        if AppRuntime.isXcodePreview {
+        if AppRuntime.isXcodePreview || AppRuntime.isUIFixture {
             hasFullDiskAccess = false
             lastChecked = Date()
             isChecking = false
             return
         }
 
-        Task.detached(priority: .utility) {
-            let granted = Self.probeFullDiskAccess()
-            await MainActor.run {
-                self.hasFullDiskAccess = granted
-                self.lastChecked = Date()
-                self.isChecking = false
-            }
+        task = Task { [weak self] in
+            let granted = (try? await BlockingIO.run { _ in Self.probeFullDiskAccess() }) ?? false
+            guard let self, !Task.isCancelled else { return }
+            hasFullDiskAccess = granted
+            lastChecked = Date()
+            isChecking = false
+            task = nil
         }
     }
+
+    isolated deinit { task?.cancel() }
 
     func openFullDiskAccessSettings() {
         // macOS Ventura+ privacy pane deep link; fall back to general Privacy & Security.

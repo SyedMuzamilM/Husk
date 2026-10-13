@@ -29,7 +29,7 @@ struct CleanView: View {
         switch model.phase {
         case .idle: "Find caches and build data. You review every removal."
         case .scanning: "Measuring known locations. Your files stay in place."
-        case .ready: "\(ByteFormat.string(for: model.totalBytes)) measured across \(model.categories.flatMap(\.items).count) locations."
+        case .ready: "\(ByteFormat.string(for: model.totalBytes)) measured across \(model.itemCount) locations."
         case .trashing: "Moving the reviewed selection to Trash."
         case .finished(let bytes, let count): "Moved \(count) items to Trash, about \(ByteFormat.string(for: bytes))."
         case .failed(let message): message

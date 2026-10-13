@@ -11,7 +11,7 @@ struct AIStorageView: View {
         VStack(spacing: 0) {
             HuskPageHeader(title: "AI Storage", subtitle: "See what your AI tools keep, and review caches before cleanup.") {
                 Button("Storage guide", systemImage: "info.circle") { showGuide = true }
-                if model.isScanning {
+                if model.isScanning || model.isInspectingWorktrees {
                     Button("Cancel") { model.cancel() }
                 } else {
                     Button(model.report == nil ? "Scan AI storage" : "Rescan", systemImage: "arrow.clockwise") { model.scan() }
@@ -57,7 +57,7 @@ struct AIStorageView: View {
         .sheet(isPresented: $showGuide) { AIStorageGuide() }
         .fileImporter(isPresented: $choosingRepository, allowedContentTypes: [.folder]) { result in
             switch result {
-            case .success(let url): Task { await model.inspectWorktrees(repository: url.path) }
+            case .success(let url): model.inspectWorktrees(repository: url.path)
             case .failure(let error): model.errorMessage = error.localizedDescription
             }
         }

@@ -23,10 +23,37 @@ struct SafetyTests {
         #expect(classification.0 != .safe)
     }
 
-    @Test func historiesAndInstalledToolsAreNotBulkSafeTargets() {
-        let targets = CleanScanner.buildTargets()
+    @Test func historiesAndInstalledToolsAreNotBulkSafeTargets() throws {
+        let fixture = try Fixture(); defer { fixture.clean() }
+        let targets = CleanScanner.buildTargets(home: fixture.root.path)
         for target in targets where target.path.hasSuffix("/dev_data") || target.path.hasSuffix("/.gemini/tmp") {
             #expect(target.safetyOverride != .safe)
+        }
+    }
+
+    @Test func targetDedupKeepsSpecificLeavesAndSimilarNamedSiblings() throws {
+        let fixture = try Fixture(); defer { fixture.clean() }
+        func target(_ suffix: String, safety: SafetyLabel? = nil) -> CleanTarget {
+            CleanTarget(categoryID: "fixture", categoryName: "Fixture", systemImage: "folder", name: suffix,
+                        path: fixture.root.appendingPathComponent(suffix).path, safetyOverride: safety, reasonOverride: nil)
+        }
+        let result = CleanScanner.uniqueTargets([target("a"), target("a-b"), target("a/child"),
+                                                 target("a/child"), target("a/child", safety: .caution)])
+        #expect(result.count == 2)
+        #expect(result.contains { $0.path.hasSuffix("/a-b") })
+        #expect(result.first { $0.path.hasSuffix("/a/child") }?.safetyOverride == .caution)
+    }
+
+    @Test func cleanupDiscoveryIsBoundedAndReportsPartialCoverage() throws {
+        let fixture = try Fixture(); defer { fixture.clean() }
+        let caches = fixture.root.appendingPathComponent("Library/Caches")
+        try FileManager.default.createDirectory(at: caches, withIntermediateDirectories: true)
+        for index in 0..<20 { _ = FileManager.default.createFile(atPath: caches.appendingPathComponent("cache-\(index)").path, contents: nil) }
+        let result = try CleanScanner.discoverTargets(home: fixture.root.path, maxEntries: 5)
+        #expect(result.targets.filter { $0.categoryID == "user-caches" }.count == 5)
+        #expect(result.issues.contains { $0.message.contains("limit reached") })
+        #expect(throws: CancellationError.self) {
+            try CleanScanner.discoverTargets(home: fixture.root.path, shouldCancel: { true })
         }
     }
 

@@ -5,7 +5,7 @@ struct AppsView: View {
     var body: some View {
         VStack(spacing: 0) {
             HuskPageHeader(title: "Applications", subtitle: "Review an app and its exact bundle ID matches before removal.") {
-                Button("Refresh", systemImage: "arrow.clockwise") { model.loadApps() }.disabled(model.isLoadingApps || model.isUninstalling)
+                Button("Refresh", systemImage: "arrow.clockwise") { model.loadApps() }.disabled(model.isBusy)
             }
             HuskSplitView {
                 appList.frame(minWidth: 240, idealWidth: 270, maxHeight: .infinity)
@@ -83,7 +83,7 @@ struct AppsView: View {
                     }
                     Spacer()
                     HuskPillButton(title: "Review removal", systemImage: "trash") { Task { await model.prepareRemoval() } }
-                        .disabled(model.isUninstalling || model.isLoadingLeftovers || (model.selectedLeftovers.isEmpty && !model.includeAppBundle) || app.isFromSystem)
+                        .disabled(model.isBusy || (model.selectedLeftovers.isEmpty && !model.includeAppBundle) || app.isFromSystem)
                 }.padding(16)
             }.background(Color.huskSurface, in: .rect(cornerRadius: HuskTheme.cardRadius))
         } else {

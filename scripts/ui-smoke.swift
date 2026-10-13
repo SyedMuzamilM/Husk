@@ -433,6 +433,6 @@ private struct FixtureShell: View {
                 HuskBackground()
                 content.frame(maxWidth: .infinity, maxHeight: .infinity).padding(.top, 12)
             }
-        }.ignoresSafeArea(edges: .top).tint(Color.huskPrimary)
+        }.ignoresSafeArea(edges: .top).tint(Color.huskAccentText)
     }
 }

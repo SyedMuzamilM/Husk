@@ -22,7 +22,7 @@ struct AnalyzeView: View {
                     Button("Home folder") { model.scan(path: NSHomeDirectory()) }
                     Button("Library") { model.scan(path: NSHomeDirectory() + "/Library") }
                     Button("Downloads") { model.scan(path: NSHomeDirectory() + "/Downloads") }
-                }.disabled(model.isLoading)
+                }.disabled(model.isBusy)
             }
             if let error = model.errorMessage { HuskNotice(message: error, systemImage: "exclamationmark.triangle").padding(.horizontal, HuskTheme.contentPadding) }
             if model.current == nil && !model.isLoading {
@@ -71,7 +71,7 @@ struct AnalyzeView: View {
                     Label(ByteFormat.string(for: current.byteCount), systemImage: "internaldrive").font(.headline)
                     Text("\(current.completeness.rawValue.capitalized) · Other/hidden \(ByteFormat.string(for: current.omittedBytes))").foregroundStyle(.secondary)
                     Spacer()
-                    Button("Refresh", systemImage: "arrow.clockwise") { model.scan(path: current.path) }.disabled(model.isLoading)
+                    Button("Refresh", systemImage: "arrow.clockwise") { model.scan(path: current.path) }.disabled(model.isBusy)
                 }
                 if let issue = current.issues.first { HuskNotice(message: issue.message) }
             }
@@ -82,7 +82,7 @@ struct AnalyzeView: View {
                     TableColumn("Allocated size") { node in Text(ByteFormat.string(for: node.byteCount)).monospacedDigit() }.width(130)
                     TableColumn("Coverage") { node in Text(node.completeness.rawValue.capitalized).foregroundStyle(.secondary) }.width(100)
                     TableColumn("Browse") { node in
-                        if node.isDirectory { Button("Open", systemImage: "chevron.right") { model.drill(into: node) }.disabled(model.isLoading) }
+                        if node.isDirectory { Button("Open", systemImage: "chevron.right") { model.drill(into: node) }.disabled(model.isBusy) }
                     }.width(80)
                 }
                 .frame(maxHeight: .infinity)
@@ -119,7 +119,7 @@ struct AnalyzeView: View {
             Button("Reveal", systemImage: "folder") { model.reveal(node.path) }
             HuskPillButton(title: "Review removal", systemImage: "trash") {
                 Task { await model.prepareRemoval(path: node.path, bytes: node.byteCount) }
-            }.disabled(model.isLoading || PathSafety.isProtected(node.path) || node.completeness == .unavailable)
+            }.disabled(model.isBusy || PathSafety.isProtected(node.path) || node.completeness == .unavailable)
         }.padding(14).background(Color.huskSurface, in: .rect(cornerRadius: HuskTheme.cardRadius))
     }
 }

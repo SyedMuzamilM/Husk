@@ -9,21 +9,20 @@ import Foundation
 @MainActor
 final class CleanViewModel {
     var phase: ScanPhase = .idle
-    var categories: [CleanCategory] = []
-    var selectedIDs: Set<UUID> = []
+    var categories: [CleanCategory] = [] { didSet { rebuildIndex() } }
+    var selectedIDs: Set<UUID> = [] { didSet { refreshSelection() } }
     var lastResult: CleanScanResult?
     var removalPlan: RemovalPlan?
     var removalResult: TrashResult?
     var removalError: String?
     private var detailGeneration = UUID()
     private var generation = UUID()
-    var searchText: String = ""
-    var expandedCategories: Set<String> = []
+    var searchText: String = "" { didSet { refreshFilteredItems() } }
 
     /// Current filter group applied to the scanned items list.
-    var selectedFilter: CleanFilter = .all
+    var selectedFilter: CleanFilter = .all { didSet { refreshFilteredItems() } }
     /// Current sort order applied to the scanned items list.
-    var sortOption: CleanSortOption = .size
+    var sortOption: CleanSortOption = .size { didSet { refreshFilteredItems() } }
 
     /// Focused item for the detail inspector.
     var inspectedItem: CleanItem?
@@ -32,72 +31,61 @@ final class CleanViewModel {
 
     private var scanTask: Task<Void, Never>?
     private var detailTask: Task<Void, Never>?
-    private let scanner = CleanScanner()
-    private let detailService = CacheDetailService()
+    typealias ProgressHandler = @Sendable (CleanScanProgress) -> Void
+    typealias ScanOperation = @Sendable (@escaping ProgressHandler) async throws -> CleanScanResult
+    private let scanOperation: ScanOperation
+    private let detailOperation: @Sendable (String) async -> CacheDetailReport
 
-    /// Flat list of items matching the search query and group filter, sorted by the selected sort option.
-    var filteredItems: [CleanItem] {
-        let q = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
-        var items = categories.flatMap(\.items)
-
-        // 1. Apply search text query matching name, path, or category.
-        if !q.isEmpty {
-            items = items.filter {
-                $0.name.localizedCaseInsensitiveContains(q)
-                    || $0.path.localizedCaseInsensitiveContains(q)
-                    || $0.categoryName.localizedCaseInsensitiveContains(q)
-            }
-        }
-
-        // 2. Apply high-level category group filters.
-        switch selectedFilter {
-        case .all:
-            break
-        case .dev:
-            // Match developer-centric caches and artifacts.
-            items = items.filter { ["developer", "package-managers", "project-artifacts", "ide"].contains($0.categoryID) }
-        case .ai:
-            // Match local AI models and coding agents.
-            items = items.filter { ["ai-agents", "local-ai"].contains($0.categoryID) }
-        case .system:
-            // Match system-level caches, logs, browser files, and Trash.
-            items = items.filter { ["user-caches", "browsers", "logs", "trash"].contains($0.categoryID) }
-        }
-
-        // 3. Apply sorting options.
-        switch sortOption {
-        case .size:
-            // Default and primary sort: show the largest items on top.
-            items.sort { $0.byteCount > $1.byteCount }
-        case .safety:
-            // Sort by risk profile (safe first), then by size.
-            items.sort {
-                if $0.safety != $1.safety { return $0.safety < $1.safety }
-                return $0.byteCount > $1.byteCount
-            }
-        case .category:
-            // Sort alphabetically by category name, then by size.
-            items.sort {
-                if $0.categoryName != $1.categoryName { return $0.categoryName < $1.categoryName }
-                return $0.byteCount > $1.byteCount
-            }
-        }
-
-        return items
+    init(scan: @escaping ScanOperation = { try await CleanScanner().scan(progress: $0) },
+         detail: @escaping @Sendable (String) async -> CacheDetailReport = { await CacheDetailService().detail(for: $0) }) {
+        scanOperation = scan
+        detailOperation = detail
     }
 
-    var selectedItems: [CleanItem] {
-        let all = categories.flatMap(\.items)
-        let byID = DictUtil.uniquingFirst(all.map { ($0.id, $0) })
-        return selectedIDs.compactMap { byID[$0] }.filter(\.safety.isSelectable)
+    @ObservationIgnored private var allItems: [CleanItem] = []
+    @ObservationIgnored private var itemsByID: [UUID: CleanItem] = [:]
+    private(set) var filteredItems: [CleanItem] = []
+    private(set) var selectedItems: [CleanItem] = []
+    private(set) var selectedBytes: Int64 = 0
+    private(set) var totalBytes: Int64 = 0
+    private(set) var itemCount = 0
+    private(set) var isPreparingRemoval = false
+
+    private func rebuildIndex() {
+        allItems = categories.flatMap(\.items)
+        itemsByID = DictUtil.uniquingFirst(allItems.map { ($0.id, $0) })
+        totalBytes = allItems.reduce(0) { $0 + $1.byteCount }
+        itemCount = allItems.count
+        refreshFilteredItems()
+        refreshSelection()
     }
 
-    var selectedBytes: Int64 {
-        selectedItems.reduce(0) { $0 + $1.byteCount }
+    private func refreshFilteredItems() {
+        let query = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
+        var items = allItems.filter { item in
+            let matchesGroup: Bool
+            switch selectedFilter {
+            case .all: matchesGroup = true
+            case .dev: matchesGroup = ["developer", "package-managers", "project-artifacts", "ide"].contains(item.categoryID)
+            case .ai: matchesGroup = ["ai-agents", "local-ai"].contains(item.categoryID)
+            case .system: matchesGroup = ["user-caches", "browsers", "logs"].contains(item.categoryID)
+            }
+            return matchesGroup && (query.isEmpty || item.name.localizedCaseInsensitiveContains(query)
+                || item.path.localizedCaseInsensitiveContains(query) || item.categoryName.localizedCaseInsensitiveContains(query))
+        }
+        items.sort { first, second in
+            if sortOption == .safety, first.safety != second.safety { return first.safety < second.safety }
+            if sortOption == .category, first.categoryName != second.categoryName { return first.categoryName < second.categoryName }
+            if first.byteCount != second.byteCount { return first.byteCount > second.byteCount }
+            if first.path != second.path { return first.path < second.path }
+            return first.id.uuidString < second.id.uuidString
+        }
+        filteredItems = items
     }
 
-    var totalBytes: Int64 {
-        categories.reduce(0) { $0 + $1.totalBytes }
+    private func refreshSelection() {
+        selectedItems = selectedIDs.compactMap { itemsByID[$0] }.filter(\.safety.isSelectable).sorted { $0.path < $1.path }
+        selectedBytes = selectedItems.reduce(0) { $0 + $1.byteCount }
     }
 
     var isScanning: Bool {
@@ -106,7 +94,8 @@ final class CleanViewModel {
     }
 
     var isBusy: Bool {
-        switch phase {
+        if isPreparingRemoval { return true }
+        return switch phase {
         case .scanning, .trashing: true
         default: false
         }
@@ -119,47 +108,39 @@ final class CleanViewModel {
         generation = run
         clearInspection()
         removalPlan = nil
+        removalError = nil
+        selectedIDs = []
+        selectedFilter = .all
+        sortOption = .size
         phase = .scanning(CleanScanProgress(fraction: 0, currentPath: "Starting…", itemsFound: 0, bytesFound: 0))
-        scanTask = Task {
-            selectedIDs = []
-            selectedFilter = .all
-            sortOption = .size
-
-            // Throttle UI progress updates to avoid rapid main thread redraws.
-            let lastEmit = ProgressThrottle(interval: 0.12)
-
+        let scan = scanOperation
+        let throttle = ProgressThrottle(interval: 0.12)
+        scanTask = Task { [weak self] in
             do {
-                let scannerService = scanner
-                let model = self
-                let result = try await scannerService.scan { [weak model] progress in
-                    Task { @MainActor [weak model] in
-                        guard let self = model else { return }
-                        if lastEmit.shouldEmit(force: progress.fraction >= 1) {
-                            if self.generation == run, self.isScanning { self.phase = .scanning(progress) }
-                        }
+                try Task.checkCancellation()
+                let result = try await scan { [weak self] progress in
+                    // Throttle before scheduling MainActor work, not after filling its queue.
+                    guard throttle.shouldEmit(force: progress.fraction >= 1) else { return }
+                    Task { @MainActor [weak self] in
+                        guard let self, generation == run, isScanning else { return }
+                        phase = .scanning(progress)
                     }
                 }
-                guard generation == run else { return }
-                guard !Task.isCancelled else {
-                    phase = categories.isEmpty ? .idle : .ready
-                    return
-                }
+                guard let self, generation == run, !Task.isCancelled else { return }
                 lastResult = result
                 categories = result.categories
-                expandedCategories = Set(result.categories.map(\.id))
-                selectedIDs = []
                 phase = .ready
-            } catch is CancellationError {
-                guard generation == run else { return }
-                phase = categories.isEmpty ? .idle : .ready
+                scanTask = nil
             } catch {
-                guard generation == run else { return }
-                phase = .failed(error.localizedDescription)
+                guard let self, generation == run else { return }
+                phase = error is CancellationError ? (categories.isEmpty ? .idle : .ready) : .failed(error.localizedDescription)
+                scanTask = nil
             }
         }
     }
 
     func cancelScan() {
+        guard isScanning else { return }
         generation = UUID()
 
         scanTask?.cancel()
@@ -168,7 +149,7 @@ final class CleanViewModel {
     }
 
     func toggle(_ item: CleanItem) {
-        guard item.safety.isSelectable else { return }
+        guard !isBusy, item.safety.isSelectable else { return }
         if selectedIDs.contains(item.id) {
             selectedIDs.remove(item.id)
         } else {
@@ -177,24 +158,21 @@ final class CleanViewModel {
     }
 
     func selectAll(in category: CleanCategory, onlySafe: Bool = false) {
-        for item in category.items {
-            guard item.safety.isSelectable else { continue }
-            if onlySafe && item.safety != .safe { continue }
-            selectedIDs.insert(item.id)
-        }
+        guard !isBusy else { return }
+        selectedIDs.formUnion(category.items.filter {
+            $0.safety.isSelectable && (!onlySafe || $0.safety == .safe)
+        }.map(\.id))
     }
 
     func deselectAll(in category: CleanCategory) {
-        for item in category.items {
-            selectedIDs.remove(item.id)
-        }
+        guard !isBusy else { return }
+        selectedIDs.subtract(category.items.map(\.id))
     }
 
     /// Selects all safe items within the currently filtered and searched list.
     func selectAllSafe() {
-        for item in filteredItems where item.safety == .safe {
-            selectedIDs.insert(item.id)
-        }
+        guard !isBusy else { return }
+        selectedIDs.formUnion(filteredItems.filter { $0.safety == .safe }.map(\.id))
     }
 
     func clearSelection() {
@@ -207,21 +185,22 @@ final class CleanViewModel {
         detailTask?.cancel()
         let run = UUID()
         detailGeneration = run
-        detailTask = Task {
-            isLoadingDetail = true
-            defer { if detailGeneration == run { isLoadingDetail = false } }
-            let report = await detailService.detail(for: item.path)
+        isLoadingDetail = true
+        let detail = detailOperation
+        detailTask = Task { [weak self] in
             guard !Task.isCancelled else { return }
-            // Only apply if still inspecting the same item
-            if detailGeneration == run, inspectedItem?.id == item.id {
-                cacheDetail = report
-            }
+            let report = await detail(item.path)
+            guard let self, !Task.isCancelled, detailGeneration == run, inspectedItem?.id == item.id else { return }
+            cacheDetail = report
+            isLoadingDetail = false
+            detailTask = nil
         }
     }
 
     func clearInspection() {
         detailGeneration = UUID()
         detailTask?.cancel()
+        detailTask = nil
         inspectedItem = nil
         cacheDetail = nil
         isLoadingDetail = false
@@ -229,12 +208,14 @@ final class CleanViewModel {
 
     func prepareRemoval() async {
         removalError = nil
-        guard !isBusy else { return }
+        guard !isBusy, !selectedItems.isEmpty else { return }
+        isPreparingRemoval = true
+        defer { isPreparingRemoval = false }
         let run = generation
         let plan = await RemovalService.shared.prepare(selectedItems.map {
             RemovalCandidate(path: $0.path, bytes: $0.byteCount, safety: $0.safety, reason: $0.reason, ownerBundleID: $0.ownerBundleID)
         }, title: "Review cleanup")
-        guard generation == run, !isBusy else { return }
+        guard generation == run, !Task.isCancelled else { return }
         removalPlan = plan
     }
 
@@ -259,9 +240,13 @@ final class CleanViewModel {
         }
     }
 
+    isolated deinit {
+        scanTask?.cancel()
+        detailTask?.cancel()
+    }
 }
 
-/// Simple main-actor-friendly throttle for progress UI.
+/// Thread-safe throttle applied before scheduling progress on the main actor.
 final class ProgressThrottle: @unchecked Sendable {
     private let interval: TimeInterval
     private var last: CFAbsoluteTime = 0

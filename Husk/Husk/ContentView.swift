@@ -19,6 +19,7 @@ struct ContentView: View {
     @State private var statusModel = StatusViewModel()
     @State private var permissions = PermissionService()
     @State private var freeSpaceText = "—"
+    @State private var freeSpaceTask: Task<Void, Never>?
 
     var body: some View {
         Group {
@@ -42,12 +43,16 @@ struct ContentView: View {
         .onChange(of: scenePhase) { _, phase in
             if phase == .active {
                 permissions.refresh()
-                if section == .status { statusModel.start() }
+                if section == .status && hasCompletedOnboarding { statusModel.start() }
             } else { statusModel.stop() }
         }
         .task {
             refreshFreeSpace()
             permissions.refresh()
+        }
+        .onDisappear { stopBackgroundWork() }
+        .onChange(of: hasCompletedOnboarding) { _, complete in
+            if !complete { stopBackgroundWork() }
         }
     }
 
@@ -71,7 +76,7 @@ struct ContentView: View {
                 .padding(.top, 12)
             }
         }
-        .tint(Color.huskPrimary)
+        .tint(Color.huskAccentText)
         .onChange(of: section) { _, newSection in
             refreshFreeSpace()
             if newSection == .settings { permissions.refresh() }
@@ -82,16 +87,26 @@ struct ContentView: View {
     }
 
     private func refreshFreeSpace() {
-        let home = URL(fileURLWithPath: NSHomeDirectory())
-        if let values = try? home.resourceValues(forKeys: [
-            .volumeAvailableCapacityForImportantUsageKey,
-            .volumeAvailableCapacityKey
-        ]) {
-            let free = Int64(values.volumeAvailableCapacity ?? 0)
-            freeSpaceText = ByteFormat.string(for: free)
-        } else {
-            freeSpaceText = "Unknown"
+        freeSpaceTask?.cancel()
+        freeSpaceTask = Task {
+            let free = try? await BlockingIO.run { _ in
+                try URL(fileURLWithPath: NSHomeDirectory())
+                    .resourceValues(forKeys: [.volumeAvailableCapacityKey]).volumeAvailableCapacity
+            }
+            guard !Task.isCancelled else { return }
+            freeSpaceText = free.map { ByteFormat.string(for: Int64($0)) } ?? "Unknown"
         }
+    }
+
+    private func stopBackgroundWork() {
+        freeSpaceTask?.cancel()
+        freeSpaceTask = nil
+        cleanModel.cancelScan()
+        cleanModel.clearInspection()
+        aiModel.cancel()
+        analyzeModel.cancel()
+        appsModel.cancel()
+        statusModel.stop()
     }
 }
 

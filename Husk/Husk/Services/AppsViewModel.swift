@@ -18,15 +18,26 @@ final class AppsViewModel {
     var isLoadingApps = false
     var isLoadingLeftovers = false
     var isUninstalling = false
+    private(set) var isPreparing = false
     var searchText = ""
     var statusMessage: String?
     var errorMessage: String?
 
-    private let service = AppUninstallService()
+    private let loadApplications: @Sendable () async -> [AppEntry]
+    private let measureApp: @Sendable (String) async -> SizeMeasurement
+    private let findLeftovers: @Sendable (AppEntry) async -> [LeftoverItem]
     private var selectionGeneration = UUID()
     private var selectTask: Task<Void, Never>?
     private var loadTask: Task<Void, Never>?
     private var loadGeneration = UUID()
+
+    init(load: @escaping @Sendable () async -> [AppEntry] = { await AppUninstallService().listApplications() },
+         size: @escaping @Sendable (String) async -> SizeMeasurement = { await AppUninstallService().sizeOfApp(at: $0) },
+         leftovers: @escaping @Sendable (AppEntry) async -> [LeftoverItem] = { await AppUninstallService().findLeftovers(for: $0) }) {
+        loadApplications = load
+        measureApp = size
+        findLeftovers = leftovers
+    }
 
     var filteredApps: [AppEntry] {
         let q = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -49,23 +60,31 @@ final class AppsViewModel {
         return total
     }
 
+    var isBusy: Bool { isLoadingApps || isLoadingLeftovers || isUninstalling || isPreparing }
+
     func loadApps() {
-        guard !isUninstalling else { return }
-        loadTask?.cancel()
+        guard !isUninstalling, !isPreparing else { return }
+        let previousSelection = selectedApp?.id
+        cancel()
+        clearSelection()
         let run = UUID()
         loadGeneration = run
         isLoadingApps = true
         errorMessage = nil
-        loadTask = Task {
-            let result = await service.listApplications()
-            guard !Task.isCancelled, loadGeneration == run else { return }
+        let load = loadApplications
+        loadTask = Task { [weak self] in
+            guard !Task.isCancelled else { return }
+            let result = await load()
+            guard let self, !Task.isCancelled, loadGeneration == run else { return }
             apps = result
             isLoadingApps = false
+            loadTask = nil
+            if let app = result.first(where: { $0.id == previousSelection }) { select(app) }
         }
     }
 
     func select(_ app: AppEntry) {
-        guard !isUninstalling else { return }
+        guard !isUninstalling, !isPreparing, !isLoadingApps else { return }
         removalPlan = nil
         selectTask?.cancel()
         selectedApp = app
@@ -73,46 +92,55 @@ final class AppsViewModel {
         selectedLeftoverIDs = []
         statusMessage = nil
         errorMessage = nil
-
+        isLoadingLeftovers = true
         let run = UUID()
         selectionGeneration = run
-        selectTask = Task {
-            isLoadingLeftovers = true
-            defer { if selectionGeneration == run { isLoadingLeftovers = false } }
-
-            // Size app + find leftovers concurrently; cancel if user picks another app.
-            async let sized: SizeMeasurement = service.sizeOfApp(at: app.path)
-            async let found: [LeftoverItem] = service.findLeftovers(for: app)
-
-            do {
-                let measurement = await sized
-                let leftoverItems = await found
-                guard !Task.isCancelled, selectionGeneration == run, selectedApp?.id == app.id else { return }
-
-                if let idx = apps.firstIndex(where: { $0.id == app.id }) {
-                    let updated = AppEntry(
-                        id: app.id,
-                        name: app.name,
-                        path: app.path,
-                        bundleIdentifier: app.bundleIdentifier,
-                        version: app.version,
-                        byteCount: measurement.bytes,
-                        isFromSystem: app.isFromSystem, completeness: measurement.status
-                    )
-                    apps[idx] = updated
-                    selectedApp = updated
-                }
-
-                leftovers = leftoverItems
-                // Default: select regenerable leftovers only (not caution prefs)
-                selectedLeftoverIDs = Set(
-                    leftoverItems.filter { $0.safety == .safe }.map(\.id)
-                )
+        let size = measureApp
+        let find = findLeftovers
+        selectTask = Task { [weak self] in
+            guard !Task.isCancelled else { return }
+            async let sized = size(app.path)
+            async let found = find(app)
+            let (measurement, leftoverItems) = await (sized, found)
+            guard let self, !Task.isCancelled, selectionGeneration == run, selectedApp?.id == app.id else { return }
+            if let index = apps.firstIndex(where: { $0.id == app.id }) {
+                let updated = AppEntry(id: app.id, name: app.name, path: app.path,
+                    bundleIdentifier: app.bundleIdentifier, version: app.version, byteCount: measurement.bytes,
+                    isFromSystem: app.isFromSystem, completeness: measurement.status)
+                apps[index] = updated
+                selectedApp = updated
             }
+            leftovers = leftoverItems
+            selectedLeftoverIDs = Set(leftoverItems.filter { $0.safety == .safe }.map(\.id))
+            isLoadingLeftovers = false
+            selectTask = nil
         }
     }
 
+    func cancel() {
+        loadGeneration = UUID()
+        selectionGeneration = UUID()
+        loadTask?.cancel()
+        selectTask?.cancel()
+        loadTask = nil
+        selectTask = nil
+        isLoadingApps = false
+        isLoadingLeftovers = false
+    }
+
+    func clearSelection() {
+        selectionGeneration = UUID()
+        selectTask?.cancel()
+        selectTask = nil
+        selectedApp = nil
+        leftovers = []
+        selectedLeftoverIDs = []
+        isLoadingLeftovers = false
+        removalPlan = nil
+    }
+
     func toggleLeftover(_ item: LeftoverItem) {
+        guard !isBusy, item.safety.isSelectable else { return }
         if selectedLeftoverIDs.contains(item.id) {
             selectedLeftoverIDs.remove(item.id)
         } else {
@@ -121,7 +149,9 @@ final class AppsViewModel {
     }
 
     func prepareRemoval() async {
-        guard let app = selectedApp, !isUninstalling, !isLoadingLeftovers, !app.isFromSystem else { return }
+        guard let app = selectedApp, !isBusy, !app.isFromSystem else { return }
+        isPreparing = true
+        defer { isPreparing = false }
         var candidates = selectedLeftovers.map {
             RemovalCandidate(path: $0.path, bytes: $0.byteCount, safety: $0.safety, reason: $0.kind, ownerBundleID: app.bundleIdentifier)
         }
@@ -131,12 +161,12 @@ final class AppsViewModel {
         }
         let run = selectionGeneration
         let plan = await RemovalService.shared.prepare(candidates, title: "Review app removal")
-        guard selectionGeneration == run, selectedApp?.id == app.id, !isUninstalling else { return }
+        guard selectionGeneration == run, selectedApp?.id == app.id, !Task.isCancelled else { return }
         removalPlan = plan
     }
 
     func uninstallSelected(_ plan: RemovalPlan) async {
-        guard !isUninstalling else { return }
+        guard !isBusy else { return }
         isUninstalling = true
         defer { isUninstalling = false }
         do {
@@ -147,7 +177,11 @@ final class AppsViewModel {
             leftovers.removeAll { success.contains($0.path) }
             selectedLeftoverIDs.formIntersection(Set(leftovers.map(\.id)))
             apps.removeAll { success.contains($0.path) }
-            if let app = selectedApp, success.contains(app.path) { selectedApp = nil }
+            if let app = selectedApp, success.contains(app.path) { clearSelection() }
         } catch { errorMessage = error.localizedDescription }
+    }
+    isolated deinit {
+        loadTask?.cancel()
+        selectTask?.cancel()
     }
 }

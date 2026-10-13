@@ -42,8 +42,10 @@ struct RemovalPlan: Identifiable, Sendable {
         var entries: [RemovalEntry] = []
         var seen: Set<FileIdentity> = []
         let sorted = candidates.sorted { $0.path.count == $1.path.count ? $0.path < $1.path : $0.path.count < $1.path.count }
-        for candidate in sorted {
-            let path = PathSafety.canonicalPath(candidate.path)
+        // Resolve each input once. Nested-risk review must not repeat filesystem
+        // resolution for every pair of selected rows.
+        let resolved = sorted.map { (candidate: $0, path: PathSafety.canonicalPath($0.path)) }
+        for (candidate, path) in resolved {
             let fail: (String) -> Void = { skipped.append(OperationIssue(path: candidate.path, message: $0)) }
             guard candidate.path.hasPrefix("/"), candidate.safety.isSelectable,
                   !PathSafety.isProtected(candidate.path), !PathSafety.hasUnsafeSymlink(candidate.path),
@@ -59,7 +61,7 @@ struct RemovalPlan: Identifiable, Sendable {
                 guard !identity.isSymbolicLink else { fail("Symbolic link; skipped."); continue }
                 guard !entries.contains(where: { $0.path == path || PathSafety.isDescendant(path, of: $0.path) }),
                       seen.insert(identity).inserted else { continue }
-                let nested = candidates.filter { PathSafety.isDescendant(PathSafety.canonicalPath($0.path), of: path) }
+                let nested = resolved.filter { PathSafety.isDescendant($0.path, of: path) }.map(\.candidate)
                 let risk = ([candidate.safety] + nested.map(\.safety)).max() ?? candidate.safety
                 guard risk.isSelectable else { fail("Selection contains inspection-only data. Select individual items instead."); continue }
                 if nested.contains(where: { $0.ownerBundleID != nil && $0.ownerBundleID != candidate.ownerBundleID }) {
