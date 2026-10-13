@@ -12,6 +12,18 @@ enum DirectorySizer {
 
     static func measurement(of inputURL: URL, shouldCancel: @escaping @Sendable () -> Bool = { false },
                             deadline: TimeInterval = 20, maxEntries: Int = 1_000_000) throws -> SizeMeasurement {
+        try walk(inputURL, shouldCancel: shouldCancel, deadline: deadline, maxEntries: maxEntries)
+    }
+
+    private struct FileKey: Hashable {
+        let device: Int32
+        let inode: UInt64
+        init(_ identity: FileIdentity) { device = identity.device; inode = identity.inode }
+    }
+
+    private static func walk(_ inputURL: URL, shouldCancel: @escaping @Sendable () -> Bool,
+                             deadline: TimeInterval, maxEntries: Int,
+                             observedFile: ((FileIdentity, Int64) -> Void)? = nil) throws -> SizeMeasurement {
         if PathSafety.hasUnsafeSymlink(inputURL.path) { return SizeMeasurement(status: .unavailable) }
         let url = URL(fileURLWithPath: PathSafety.canonicalPath(inputURL.path))
         if shouldCancel() { throw CancellationError() }
@@ -40,7 +52,14 @@ enum DirectorySizer {
             result.status = .unavailable
             return result
         }
-        if rootValues.isDirectory != true { return try fileMeasurement(url) }
+        if rootValues.isUbiquitousItem == true && rootValues.ubiquitousItemDownloadingStatus != .current && rootValues.ubiquitousItemDownloadingStatus != .downloaded {
+            return SizeMeasurement(status: .unavailable, issues: [OperationIssue(path: url.path, message: "Cloud-only item; not downloaded for sizing.")], totalIssueCount: 1)
+        }
+        if rootValues.isDirectory != true {
+            let result = fileMeasurement(url, values: rootValues)
+            if rootValues.isRegularFile == true { observedFile?(rootIdentity, result.bytes) }
+            return result
+        }
         // Enumerators report failures through this callback on the same worker.
         var errors: [OperationIssue] = []
         var errorCount = 0
@@ -50,7 +69,7 @@ enum DirectorySizer {
             if errors.count < 50 { errors.append(OperationIssue(path: path.path, message: error.localizedDescription)) }
             return true
         }) else { throw CocoaError(.fileReadNoPermission) }
-        var seen: Set<String> = []
+        var seen: Set<FileKey> = []
         // Foundation produces autoreleased URLs and resource dictionaries.
         // Drain each iteration instead of retaining them until the whole scan ends.
         while let child = autoreleasepool(invoking: { enumerator.nextObject() as? URL }) {
@@ -78,9 +97,11 @@ enum DirectorySizer {
                         enumerator.skipDescendants(); result.note(child.path, "Cloud-only item; not downloaded for sizing."); return
                     }
                     if values.isRegularFile == true {
-                        let key = "\(identity.device):\(identity.inode)"
+                        let key = FileKey(identity)
                         if seen.insert(key).inserted {
-                            result.bytes += allocated(values)
+                            let bytes = allocated(values)
+                            result.bytes += bytes
+                            observedFile?(identity, bytes)
                             if values.totalFileAllocatedSize == nil && values.fileAllocatedSize == nil {
                                 result.note(child.path, "Allocated size unavailable; logical size estimate used.")
                             }
@@ -117,8 +138,7 @@ enum DirectorySizer {
         Int64(values.totalFileAllocatedSize ?? values.fileAllocatedSize ?? values.fileSize ?? 0)
     }
 
-    private static func fileMeasurement(_ url: URL) throws -> SizeMeasurement {
-        let values = try url.resourceValues(forKeys: keys)
+    private static func fileMeasurement(_ url: URL, values: URLResourceValues) -> SizeMeasurement {
         if values.isSymbolicLink == true { return SizeMeasurement(status: .unavailable) }
         var result = SizeMeasurement(bytes: allocated(values), modified: values.contentModificationDate)
         if values.totalFileAllocatedSize == nil && values.fileAllocatedSize == nil {
@@ -127,57 +147,150 @@ enum DirectorySizer {
         return result
     }
 
-    /// Measure every eligible child before choosing the largest displayed items.
-    /// Parent totals use a single traversal for consistent hardlink accounting.
-    static func listing(of inputURL: URL, maxChildren: Int = 100, includeHidden: Bool = true) async throws -> DirectoryListing {
+    /// Stream immediate children and measure each subtree once. The retained
+    /// rows are bounded; one global budget covers discovery and measurement.
+    static func listing(of inputURL: URL, maxChildren: Int = 100, includeHidden: Bool = true,
+                        deadline: TimeInterval = 60, maxEntries: Int = 1_000_000) async throws -> DirectoryListing {
+        let policy = ScanPreferences.excludedPaths
+        var listing = try await BlockingIO.run { flag in
+            try directoryListing(inputURL, maxChildren: maxChildren, includeHidden: includeHidden,
+                                 deadline: deadline, maxEntries: maxEntries, shouldCancel: { flag.isCancelled })
+        }
+        try Task.checkCancellation()
+        if policy != ScanPreferences.excludedPaths {
+            listing.total.note(inputURL.path, "Exclusions changed while measuring. Scan again.")
+        }
+        return listing
+    }
+
+    private static func directoryListing(_ inputURL: URL, maxChildren: Int, includeHidden: Bool,
+                                         deadline: TimeInterval, maxEntries: Int,
+                                         shouldCancel: @escaping @Sendable () -> Bool) throws -> DirectoryListing {
+        if shouldCancel() { throw CancellationError() }
         let url = URL(fileURLWithPath: PathSafety.canonicalPath(inputURL.path))
         guard !PathSafety.hasUnsafeSymlink(inputURL.path), !PathSafety.isSensitiveForReading(url.path),
               !PathSafety.shouldSkipForSizing(url.path), !ScanPreferences.isExcluded(url.path) else {
             throw RemovalError.changed("Excluded, protected, cloud, or symbolic-link location cannot be listed.")
         }
         let began = ContinuousClock.now
-        let urls = try await BlockingIO.run { flag in
-            if flag.isCancelled { throw CancellationError() }
-            return try FileManager.default.contentsOfDirectory(at: url, includingPropertiesForKeys: Array(keys),
-                                                               options: includeHidden ? [] : [.skipsHiddenFiles])
-        }
-        let total = try await measure(url)
-        let children = try await withThrowingTaskGroup(of: ChildMeasurement.self) { group in
-            var iterator = urls.sorted { $0.path < $1.path }.makeIterator()
-            func enqueue() {
-                if let child = iterator.next() {
-                    group.addTask {
-                        try Task.checkCancellation()
-                        let isDirectory = (try? await BlockingIO.run { _ in
-                            try child.resourceValues(forKeys: [.isDirectoryKey]).isDirectory == true
-                        }) ?? false
-                        let sized: SizeMeasurement
-                        do {
-                            if began.duration(to: .now) > .seconds(60) {
-                                sized = SizeMeasurement(status: .unavailable, issues: [OperationIssue(path: child.path, message: "Listing time budget reached.")], totalIssueCount: 1)
-                            } else { sized = try await measure(child) }
+        let rootIdentity = try FileIdentity.read(url.path)
+        let rootValues = try url.resourceValues(forKeys: [.isDirectoryKey, .contentModificationDateKey])
+        guard rootValues.isDirectory == true else { throw CocoaError(.fileReadUnknown) }
+        var total = SizeMeasurement(modified: rootValues.contentModificationDate)
+        var parentFiles: Set<FileKey> = []
+        var uniqueBytes: Int64 = 0
+        var top = TopChildren(capacity: max(0, maxChildren))
+        var childCount = 0
+        let exclusions = ScanPreferences.excludedPaths.map(PathSafety.canonicalPath)
+        let listingKeys = keys.union([.isHiddenKey])
+        guard let enumerator = FileManager.default.enumerator(at: url,
+            includingPropertiesForKeys: Array(listingKeys),
+            options: [.skipsSubdirectoryDescendants], errorHandler: { path, error in
+                total.note(path.path, error.localizedDescription)
+                return true
+            }) else { throw CocoaError(.fileReadNoPermission) }
+        while true {
+            if shouldCancel() { throw CancellationError() }
+            let elapsed = began.duration(to: .now).components
+            let remaining = deadline - Double(elapsed.seconds) - Double(elapsed.attoseconds) / 1e18
+            if total.visitedEntries >= maxEntries || remaining <= 0 {
+                total.note(url.path, "Listing limit reached. Sizes and item counts are partial; refresh or inspect a smaller folder.")
+                break
+            }
+            guard let child = autoreleasepool(invoking: { enumerator.nextObject() as? URL }) else { break }
+            total.visitedEntries += 1
+            childCount += 1
+            try autoreleasepool {
+                var values: URLResourceValues?
+                let sized: SizeMeasurement
+                do {
+                    values = try child.resourceValues(forKeys: listingKeys)
+                    let identity = try FileIdentity.read(child.path)
+                    if PathSafety.shouldSkipDirectoryName(child.lastPathComponent)
+                        || PathSafety.isSensitiveForReading(child.path) || PathSafety.shouldSkipForSizing(child.path)
+                        || exclusions.contains(where: { child.path.lowercased() == $0.lowercased() || PathSafety.isDescendant(child.path, of: $0) }) {
+                        sized = SizeMeasurement(status: .unavailable,
+                            issues: [OperationIssue(path: child.path, message: "Excluded, protected, or cloud location; not measured.")], totalIssueCount: 1)
+                    } else if identity.isSymbolicLink || values?.isSymbolicLink == true {
+                        sized = SizeMeasurement(status: .unavailable)
+                    } else if identity.device != rootIdentity.device {
+                        sized = SizeMeasurement(status: .unavailable,
+                            issues: [OperationIssue(path: child.path, message: "Different volume; inspect it separately.")], totalIssueCount: 1)
+                    } else if values?.isUbiquitousItem == true && values?.ubiquitousItemDownloadingStatus != .current && values?.ubiquitousItemDownloadingStatus != .downloaded {
+                        sized = SizeMeasurement(status: .unavailable,
+                            issues: [OperationIssue(path: child.path, message: "Cloud-only item; not downloaded for sizing.")], totalIssueCount: 1)
+                    } else if let values, values.isDirectory != true {
+                        sized = fileMeasurement(child, values: values)
+                        if values.isRegularFile == true && parentFiles.insert(FileKey(identity)).inserted {
+                            uniqueBytes += sized.bytes
                         }
-                        catch is CancellationError { throw CancellationError() }
-                        catch {
-                            sized = SizeMeasurement(status: .unavailable,
-                                issues: [OperationIssue(path: child.path, message: error.localizedDescription)], totalIssueCount: 1)
+                    } else {
+                        sized = try walk(child, shouldCancel: shouldCancel, deadline: remaining,
+                                         maxEntries: max(0, maxEntries - total.visitedEntries)) { identity, bytes in
+                            if parentFiles.insert(FileKey(identity)).inserted { uniqueBytes += bytes }
                         }
-                        return ChildMeasurement(name: child.lastPathComponent, path: child.path,
-                                                isDirectory: isDirectory, measurement: sized)
                     }
+                } catch is CancellationError { throw CancellationError() }
+                catch {
+                    sized = SizeMeasurement(status: .unavailable,
+                        issues: [OperationIssue(path: child.path, message: error.localizedDescription)], totalIssueCount: 1)
+                }
+                total.visitedEntries += sized.visitedEntries
+                if sized.status != .complete && sized.totalIssueCount > 0 {
+                    total.status = .partial
+                    total.totalIssueCount += sized.totalIssueCount
+                    total.issues.append(contentsOf: sized.issues.prefix(max(0, 50 - total.issues.count)))
+                }
+                if includeHidden || (values?.isHidden != true && !child.lastPathComponent.hasPrefix(".")) {
+                    top.insert(ChildMeasurement(name: child.lastPathComponent, path: child.path,
+                        isDirectory: values?.isDirectory == true, measurement: sized))
                 }
             }
-            for _ in 0..<4 { enqueue() }
-            var results: [ChildMeasurement] = []
-            for try await child in group { results.append(child); enqueue() }
-            return results.sorted { $0.bytes == $1.bytes ? $0.path < $1.path : $0.bytes > $1.bytes }
         }
-        let retained = Array(children.prefix(maxChildren))
+        total.bytes = uniqueBytes
+        if (try? FileIdentity.read(url.path)) != rootIdentity {
+            total.note(url.path, "Folder changed during measurement.")
+        }
+        let retained = top.sorted()
         return DirectoryListing(children: retained, total: total,
                                 omittedBytes: max(0, total.bytes - retained.reduce(0) { $0 + $1.bytes }),
-                                omittedCount: max(0, children.count - retained.count))
+                                omittedCount: max(0, childCount - retained.count))
     }
 
+    /// The heap root is the least useful retained row. Larger rows replace it
+    /// without retaining or sorting every sibling. Path breaks equal-size ties.
+    private struct TopChildren {
+        let capacity: Int
+        private var heap: [ChildMeasurement] = []
+        init(capacity: Int) { self.capacity = capacity }
+        private static func better(_ a: ChildMeasurement, _ b: ChildMeasurement) -> Bool {
+            a.bytes == b.bytes ? a.path < b.path : a.bytes > b.bytes
+        }
+        mutating func insert(_ child: ChildMeasurement) {
+            guard capacity > 0 else { return }
+            if heap.count < capacity {
+                heap.append(child)
+                var index = heap.count - 1
+                while index > 0 {
+                    let parent = (index - 1) / 2
+                    guard Self.better(heap[parent], heap[index]) else { break }
+                    heap.swapAt(parent, index)
+                    index = parent
+                }
+            } else if Self.better(child, heap[0]) {
+                heap[0] = child
+                var index = 0
+                while index * 2 + 1 < heap.count {
+                    var worst = index * 2 + 1
+                    if worst + 1 < heap.count && Self.better(heap[worst], heap[worst + 1]) { worst += 1 }
+                    guard Self.better(heap[index], heap[worst]) else { break }
+                    heap.swapAt(index, worst)
+                    index = worst
+                }
+            }
+        }
+        func sorted() -> [ChildMeasurement] { heap.sorted(by: Self.better) }
+    }
 
 }
 

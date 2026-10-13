@@ -30,7 +30,7 @@ struct ChildMeasurement: Identifiable, Sendable {
 
 struct DirectoryListing: Sendable {
     let children: [ChildMeasurement]
-    let total: SizeMeasurement
+    var total: SizeMeasurement
     let omittedBytes: Int64
     let omittedCount: Int
 }

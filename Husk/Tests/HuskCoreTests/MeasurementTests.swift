@@ -33,6 +33,69 @@ struct MeasurementTests {
         #expect(throws: CancellationError.self) { try DirectorySizer.measurement(of: fixture.root, shouldCancel: { true }) }
     }
 
+    @Test func listingStopsAtItsEntryBudgetAndReportsPartialCoverage() async throws {
+        let fixture = try Fixture(); defer { fixture.clean() }
+        for index in 0..<20 { _ = try fixture.file("file-\(index)") }
+        let listing = try await DirectorySizer.listing(of: fixture.root, maxChildren: 2, maxEntries: 5)
+        #expect(listing.total.status == .partial)
+        #expect(listing.total.visitedEntries == 5)
+        #expect(listing.children.count == 2)
+        #expect(!listing.total.issues.isEmpty)
+        let expired = try await DirectorySizer.listing(of: fixture.root, deadline: 0)
+        #expect(expired.total.status == .partial)
+        #expect(expired.total.visitedEntries == 0)
+        #expect(expired.children.isEmpty)
+    }
+
+    @Test func streamingListingRetainsLargestRowsAndCountsHiddenBytes() async throws {
+        let fixture = try Fixture(); defer { fixture.clean() }
+        for index in 0..<30 { _ = try fixture.file("small-\(index)") }
+        _ = try fixture.file("large-b", bytes: 32768)
+        _ = try fixture.file("large-a", bytes: 32768)
+        _ = try fixture.file(".hidden-largest", bytes: 65536)
+        let listing = try await DirectorySizer.listing(of: fixture.root, maxChildren: 2, includeHidden: false)
+        #expect(listing.children.map(\.name) == ["large-a", "large-b"])
+        #expect(listing.total.status == .complete)
+        #expect(listing.total.visitedEntries == 33)
+        #expect(listing.omittedCount == 31)
+        #expect(listing.omittedBytes >= 65536)
+        let totalsOnly = try await DirectorySizer.listing(of: fixture.root, maxChildren: 0)
+        #expect(totalsOnly.children.isEmpty)
+        #expect(totalsOnly.total.bytes == listing.total.bytes)
+    }
+
+    @Test func listingParentCountsHardlinksAcrossSubtreesOnce() async throws {
+        let fixture = try Fixture(); defer { fixture.clean() }
+        let original = try fixture.file("original", bytes: 16384)
+        let package = fixture.root.appendingPathComponent("Fake.app")
+        try FileManager.default.createDirectory(at: package, withIntermediateDirectories: true)
+        try FileManager.default.linkItem(at: original, to: package.appendingPathComponent("shared"))
+        let allocated = try DirectorySizer.measurement(of: original).bytes
+        let listing = try await DirectorySizer.listing(of: fixture.root)
+        #expect(listing.total.status == .complete)
+        #expect(listing.total.bytes == allocated)
+        #expect(listing.children.first(where: { $0.name == "Fake.app" })?.bytes == allocated)
+        #expect(listing.children.reduce(0) { $0 + $1.bytes } == allocated * 2)
+    }
+
+    @Test func listingPropagatesSkippedDataAndBudgetsThroughNestedFolders() async throws {
+        let fixture = try Fixture(); defer { fixture.clean() }
+        let directory = fixture.root.appendingPathComponent("nested")
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        for index in 0..<10 { try Data(repeating: 1, count: 4096).write(to: directory.appendingPathComponent("file-\(index)")) }
+        let limited = try await DirectorySizer.listing(of: fixture.root, maxEntries: 3)
+        #expect(limited.total.status == .partial)
+        #expect(limited.total.visitedEntries == 3)
+        #expect(limited.children.first?.measurement.status == .partial)
+        let protected = fixture.root.appendingPathComponent(".Trash")
+        try FileManager.default.createDirectory(at: protected, withIntermediateDirectories: true)
+        try Data(repeating: 1, count: 65536).write(to: protected.appendingPathComponent("private"))
+        let listing = try await DirectorySizer.listing(of: fixture.root)
+        #expect(listing.total.status == .partial)
+        #expect(listing.children.first(where: { $0.name == ".Trash" })?.measurement.status == .unavailable)
+        #expect(listing.total.bytes < 65536)
+    }
+
     @Test func exactBundleIDPathsCannotMatchAnotherApplication() {
         let paths = AppUninstallService.associatedPaths(bundleID: "com.example.tool", home: "/tmp/home")
         #expect(paths.allSatisfy { URL(fileURLWithPath: $0.path).lastPathComponent == "com.example.tool" || $0.path.hasSuffix("/com.example.tool.plist") || $0.path.hasSuffix("/com.example.tool.savedState") })
@@ -55,6 +118,15 @@ struct MeasurementTests {
 }
 
 struct ListingPolicyTests {
+    @Test func cancelledListingDoesNotPublishAResult() async throws {
+        let fixture = try Fixture(); defer { fixture.clean() }
+        _ = try fixture.file("one")
+        let task = Task { try await DirectorySizer.listing(of: fixture.root) }
+        task.cancel()
+        do { _ = try await task.value; Issue.record("Cancelled listing returned a result") }
+        catch is CancellationError { }
+    }
+
     @Test func protectedRootAndSymlinkRootAreNotListed() async throws {
         let fixture = try Fixture(); defer { fixture.clean() }
         let alias = fixture.root.appendingPathComponent("alias")

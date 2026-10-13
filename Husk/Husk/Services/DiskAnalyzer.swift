@@ -3,7 +3,7 @@ import Foundation
 actor DiskAnalyzer {
     func analyze(rootPath: String, includeHidden: Bool = true,
                  progress: @Sendable @escaping (String) -> Void) async throws -> DiskNode {
-        progress("Measuring all children…")
+        progress("Measuring folder contents…")
         return try await expand(path: rootPath, includeHidden: includeHidden)
     }
 

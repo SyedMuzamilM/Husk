@@ -2,6 +2,12 @@
 # Opt-in service benchmark. Creates and removes only its own temporary fixtures.
 set -euo pipefail
 repo_root="$(cd "$(dirname "$0")/.." && pwd)"
+probe_options=()
+case "${HUSK_PROFILE_MODE:-sizing}" in
+  sizing) ;;
+  listing) probe_options=(--listing) ;;
+  *) echo "HUSK_PROFILE_MODE must be sizing or listing" >&2; exit 1 ;;
+esac
 fixture_dir="$(mktemp -d /private/tmp/Husk-profile.XXXXXX)"
 build_dir="$(mktemp -d "${TMPDIR:-/tmp}/husk-profile-build.XXXXXX")"
 cleanup() {
@@ -29,7 +35,7 @@ swiftc -O -swift-version 6 -parse-as-library \
   "$src/Services/DirectorySizer.swift" "$src/Services/TrashService.swift" \
   "$src/Theme/HuskTheme.swift" "$repo_root/docs/performance/SizingMemoryProbe.swift" \
   -o "$build_dir/probe"
-/usr/bin/time -l "$build_dir/probe" "$fixture_dir" > "$build_dir/result.txt" 2>&1
+/usr/bin/time -l "$build_dir/probe" "$fixture_dir" "${probe_options[@]}" > "$build_dir/result.txt" 2>&1
 python3 - "$build_dir/result.txt" <<'PY'
 import os,re,sys
 from pathlib import Path
