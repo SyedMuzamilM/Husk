@@ -31,7 +31,7 @@ Development host: Apple Silicon, macOS 27, Xcode 27 beta, Swift 6.4, local APFS.
 | Large listing | 100,000 entries visited, complete coverage, 100 rows retained, 99,900 omitted. 7.609 seconds, 27.56 MiB peak RSS and 12.09 MiB footprint. The 160 MiB service RSS budget passed. |
 | HTML discussion | Desktop/light and mobile/dark layouts fit without horizontal overflow or console errors. Checklist and local download handler exercised. No network or persistent storage is used. |
 | Credential-pattern scan | 355 historical Git blobs and 207 current files checked; zero high-confidence private-key, AWS-key, GitHub-token, or OpenAI-style-token matches. No historical blob exceeded the 5 MB scan cap. This is not exhaustive secret detection. |
-| Scripts | Shell syntax, repository policy checks, and Git whitespace checks pass. |
+| Scripts | Shell syntax, repository policy checks, and Git whitespace checks pass. Disposable checker fixtures correctly reject a mismatched license and an unpinned CI action. |
 
 Swift 6.4 warns about immutable weak test locals; they remain compatible with the declared Swift 6.2 minimum. Xcode skips AppIntents metadata extraction because Husk does not use AppIntents. Neither warning is a test/build failure.
 
@@ -81,3 +81,9 @@ Logs and screenshots from this pass were written under `/tmp/husk-opensource-*`,
 - AI sessions, worktrees, installed versions, and model data remain inspection-only. New cleanup support requires tool-specific reference, activity, and recovery evidence.
 
 Use [the release checklist](OPEN_SOURCE_READINESS.html) for discussion and [RELEASING.md](RELEASING.md) for commands. The user's unrelated untracked `idea/` directory is preserved and excluded from these commits. A clean checkout is required for release-source verification.
+
+## Committed-source verification
+
+The final application/policy revision is `a403aa34e9fd3d84b8d7b92a239e3a80e26a3969`. A fresh temporary local clone passed the clean-source gate, and prepare-release-source.sh exported its committed files. The archive contained neither Git metadata nor the unrelated `idea/` directory. The full verify.sh sequence exited successfully from that archive, including repository checks, eight release-source tests, the Swift suite, Debug, universal Release, and both bundled-license comparisons. No signing credentials were used.
+
+Final native contrast verification produced 94 captures and 100 passing check messages. The subsequent repository change only records this verification; it does not alter application code or build scripts.
