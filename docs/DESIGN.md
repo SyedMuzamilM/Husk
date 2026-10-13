@@ -1,3 +1,5 @@
+> Historical product plan. Current implementation is documented in README.md and ARCHITECTURE.md. Whole-app MIT licensing supersedes any paid-tier or commercial-license proposals here.
+
 # Design System & UX — Husk
 
 **Principle:** Technical power, calm presentation.  

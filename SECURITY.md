@@ -4,7 +4,11 @@ Husk is an unreleased experimental beta. No production version currently receive
 
 ## Reporting
 
-Do not post sensitive paths, credentials, private file contents, or an exploitable destructive workflow in a public issue. Before publication, the maintainer must enable GitHub private vulnerability reporting and publish its repository-specific "Report a vulnerability" link. That channel is not verified or available through this checkout. Until configured, contact the repository owner through an existing private channel. No response-time promise is made yet.
+Send private vulnerability reports to [muzamil@mzml.dev](mailto:muzamil@mzml.dev), with “Husk security report” in the subject. Do not put credentials, private file contents, personal paths, or an exploitable destructive workflow in a public issue.
+
+The repository is currently private. When the maintainer makes it public and enables GitHub private vulnerability reporting, [Report a vulnerability](https://github.com/SyedMuzamilM/Husk/security/advisories/new) will offer another private route. Email remains the available reporting channel until that setting is enabled. Do not use a public issue as a fallback.
+
+The maintainer will acknowledge reports as availability permits, investigate a disposable reproduction, and coordinate a fix and disclosure with the reporter. This volunteer project does not promise a response deadline or a paid bug bounty. Please allow time to assess and repair a vulnerability before public disclosure. Security-related conduct follows the [code of conduct](CODE_OF_CONDUCT.md).
 
 A useful private report includes the source revision, macOS version, permission state, a disposable reproduction, expected/observed behavior, and affected policy boundary. Redact usernames and personal paths. Use fixture data rather than a real destructive example.
 

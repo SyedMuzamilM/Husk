@@ -1,0 +1,33 @@
+name: Cleanup rule proposal
+description: Propose a documented regenerable cache path. Durable data stays protected.
+body:
+  - type: markdown
+    attributes:
+      value: Read docs/RULES.md first. Do not submit personal paths, credentials, prompts, or session contents.
+  - type: input
+    id: tool
+    attributes:
+      label: Tool and versions
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Exact relative paths and primary-source evidence
+      description: Link documentation or source proving the path's purpose, ownership, and regeneration behavior.
+    validations:
+      required: true
+  - type: textarea
+    id: loss
+    attributes:
+      label: Loss and active-use behavior
+      description: What can be lost or downloaded again? How are running tools, installers, custom homes, and symlinks handled?
+    validations:
+      required: true
+  - type: textarea
+    id: fixtures
+    attributes:
+      label: Disposable fixture plan
+      description: Include parents, lookalikes, protected content, exclusions, and unavailable or partial measurements.
+    validations:
+      required: true

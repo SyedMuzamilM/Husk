@@ -1,4 +1,4 @@
-> Historical product plan. Proposed features and pricing are not current implementation claims. See the repository README and AUDIT_RESOLUTION.md for verified status.
+> Historical product plan. Proposed features and pricing are not current implementation claims. Whole-app MIT licensing supersedes commercial-license proposals. See the repository README and AUDIT_RESOLUTION.md for verified status.
 
 # Features — Husk
 

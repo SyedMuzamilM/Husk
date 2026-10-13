@@ -1,3 +1,5 @@
+> Historical product plan. Current implementation is documented in README.md and ARCHITECTURE.md. Whole-app MIT licensing supersedes any paid-tier or commercial-license proposals here.
+
 # Research Review — Audit of `research.md`
 
 This is a critical pass over the original strategic analysis: what holds, what to tighten, and what decisions we locked into product docs.

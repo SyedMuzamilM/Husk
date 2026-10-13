@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Private security report
+    url: mailto:muzamil@mzml.dev
+    about: Report vulnerabilities or suspected wrong-file removal privately.
+  - name: Conduct report
+    url: mailto:muzamil@mzml.dev
+    about: Contact the maintainer privately under the code of conduct.

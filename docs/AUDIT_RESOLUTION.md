@@ -2,7 +2,7 @@
 
 Application repairs start at `8139214`; the subsequent memory follow-up bounds temporary Foundation object lifetime.
 
-The original audit remains a record of the pre-fix code. This ledger describes the resulting implementation and what still needs verification. "Implemented" does not mean certified safe for public distribution.
+The original audit remains a record of the pre-fix code. This ledger describes the resulting implementation and what still needs verification. See OPEN_SOURCE_VERIFICATION_2026-10-13.md for the latest run and follow-up fixes. "Implemented" does not mean certified safe for public distribution.
 
 | Finding | Result | Remaining work or limitation |
 |---|---|---|
@@ -18,7 +18,7 @@ The original audit remains a record of the pre-fix code. This ledger describes t
 | F10 overlap/mutable review | Shared actor gate, immutable review list, replay rejection; highest nested risk retained; differing nested owners rejected | Review sheet execution is explicit. A future agent/API endpoint must not bypass visible human review. |
 | F11 hidden failures | All destinations, failures, skipped items, cancellation, and history-write failures shown; unsuccessful items remain selected | Real Finder Trash/restore integration on disposable volumes remains. |
 | F12 duplicate accounting | Canonical exact/nested target dedup and unique plan identities | Cross-target hardlinks/APFS shared blocks prevent a guarantee of uniquely freed bytes. |
-| F13 misleading disk totals | Measure eligible children before top-K, include hidden/package contents, independently measure parent, show Other/partial/unavailable and issues | Per-child shared blocks can exceed independent parent totals. Listing time budget can leave unavailable children. |
+| F13 misleading disk totals | Measure eligible children before top-K, include hidden/package contents, aggregate the parent with shared hardlink accounting, show Other/partial/unavailable and issues | Per-child shared blocks can exceed independent parent totals. Listing time budget can leave unavailable children. |
 | F14 sizing semantics/deadlines | One native metadata contract; no du fallback; allocated sizes, explicit logical fallback when unavailable; cooperative 20s/1M traversal and 60s listing budgets | A blocked kernel or filesystem call can exceed the cooperative budget. Need slow/network-volume trials. |
 | F15 blocking task bursts | Shared four-worker BlockingIO queue, bounded child fan-out, and per-entry autorelease pools | Some small metadata/identity calls remain outside that queue. Real peak memory at 1M entries is not measured. |
 | F16 Analyze main-thread Trash | All UI mutation goes through the shared actor and detached worker | Native Finder Trash calls may themselves block. |
@@ -55,7 +55,7 @@ All measured entries were visited, with complete coverage. These are local fixtu
 
 ## Publication and product decisions
 
-Implemented preparation: accurate README, contribution/security/privacy/rule documents, source inventory, minimal read-only CI, and local signing/notarization tooling. Pending owner decisions: OSI license and copyright identity, asset rights, private security contact, contribution terms, Apple signing/notary credentials, release OS/hardware matrix, and whether any future paid services fit the open-source model.
+Implemented preparation: accurate README, contribution/security/privacy/rule documents, source inventory, minimal read-only CI, and local signing/notarization tooling. Resolved on 2026-10-13: whole-app MIT on main, original brand asset ownership, inbound MIT contributions, and muzamil@mzml.dev for private reports. Still external: Apple signing/notary credentials, runtime compatibility/accessibility validation, and repository publication/security settings. No paid feature gate is planned.
 
 Mole-inspired changes shipped here are transparent review, exclusions, shared measurement, list alongside treemap, labeled navigation, honest coverage, local history, and task-specific maintenance. AI Storage now inventories model/session/tool stores and offers Git worktree inspection, with shared protection across all removal screens. Owner-managed session deletion, model removal and version pruning remain future work. Ports, live charts/menu bar and read-only MCP are also future product work. Automatic deletion, permanent deletion, arbitrary-shell plugins, and privileged hardware control remain deferred.
 
@@ -65,3 +65,9 @@ Mole-inspired changes shipped here are transparent review, exclusions, shared me
 The app retains the original compact rail, warm amber palette, centered cleanup hero and rounded panels. Light-mode text uses darker amber/teal variants; native tables preserve stable identities and keyboard selection. The native fixture runner passed 52 captures at two sizes in both appearances, visible control-label checks and an actual Select Safe click. Full VoiceOver/keyboard and fresh-user permission walkthroughs remain unverified.
 
 The shared AI catalog admits only fixed cache leaves for review. Unknown or empty activity probes block cleanup; known executables and unattributed CLI JavaScript runtimes block affected caches. Activity is rechecked before each Trash move. Broad AI containers, sessions, models, runtimes, updater staging and version stores are protected from Analyze/Apps removal too. Case variants cannot bypass root protection. Read-only Git worktree probes disable hooks, fsmonitor and optional index writes and ignore inherited GIT_* settings. Clean status never implies inactivity. See AI_STORAGE.md for paths, source evidence, residual activity/path races and omitted custom tool homes.
+
+## Open-source and lifecycle follow-up, 2026-10-13
+
+Clean, Analyze, Apps, and AI scan tasks no longer retain their models across suspended loads. Analyze sets loading synchronously so immediate cancellation sticks, rejects obsolete results, and avoids restarting a scan after a removal completes in a closed window. Apps refresh clears vanished selections; AI ignores cancelled scan errors and owns worktree tasks. Window teardown cancels background work. Fixture builds skip permission probes.
+
+Cleanup rows and totals are cached at input changes; target dedup resolves each path once. Discovery streams under a shared budget. Full directory listings retain top-K rows and avoid a second parent traversal. Release builds use a verified committed archive and carry both MIT notices. Current tests, sanitizer results, fixture timings, and unresolved distribution gates are recorded in the latest verification document.

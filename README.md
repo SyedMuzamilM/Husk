@@ -1,6 +1,6 @@
 # Husk
 
-Husk is an experimental native macOS utility for reviewing storage, moving selected items to Trash, uninstalling apps, and observing system processes. It uses Swift 6, SwiftUI, Foundation, AppKit, and Darwin. Onboarding uses a reviewed local snapshot of [TourKit](https://github.com/rampatra/TourKit), licensed under MIT. There is no telemetry, privileged helper or network client.
+Husk is an experimental native macOS utility for reviewing storage, moving selected items to Trash, uninstalling apps, and observing system processes. It uses Swift 6, SwiftUI, Foundation, AppKit, and Darwin. Onboarding uses a reviewed local snapshot of [TourKit](https://github.com/rampatra/TourKit), licensed under MIT. The whole app is licensed under [MIT](LICENSE). There is no telemetry, privileged helper or network client.
 
 Requires macOS 14 or later and Xcode 26.2 or later with Swift 6.2. Only the current development machine has been verified. This is not a signed public release or a completed security certification.
 
@@ -36,7 +36,7 @@ Tests use disposable fixtures and inject the move operation; they never send exi
 
 ## Safety limits
 
-Sizes estimate allocated bytes, not guaranteed freed space. APFS clones, snapshots, hardlinks, and purgeable storage complicate accounting. Moving to Trash usually does not release space until Trash is emptied. Child estimates can share blocks and need not sum to the independently measured parent.
+Sizes estimate allocated bytes, not guaranteed freed space. APFS clones, snapshots, hardlinks, and purgeable storage complicate accounting. Moving to Trash usually does not release space until Trash is emptied. Child estimates can share blocks and need not sum to the parent aggregate with shared hardlinks counted once.
 
 Identity checks detect item replacement and root metadata changes, not every edit inside a selected folder. Foundation's path-based Trash API retains a small race between validation and moving. No path policy can prove arbitrary user data is disposable. Read the exact paths and risks before confirming. Restore using Finder's Put Back when available; Husk records destinations but does not automate restoration.
 
@@ -44,6 +44,8 @@ See [the original audit](docs/PROJECT_AUDIT_2026-10-11.md), [fix status](docs/AU
 
 ## Open-source status
 
-The repository is being prepared for open-source publication. An OSI license and verified copyright ownership still need the owner's decision. No reuse license is granted yet. Do not describe the project as open source until LICENSE is added. Proposed pricing and Premium features in historical plans are undecided.
+The entire app, tests, original documentation, and original artwork use the [MIT license](LICENSE). Development continues on `main`; there is no paid feature gate. See [notices](NOTICE.md) for TourKit and Apple materials. The owner has approved the license and original brand assets; repository publication is a separate maintainer action.
+
+Read [contributing](CONTRIBUTING.md), the [code of conduct](CODE_OF_CONDUCT.md), and [support](SUPPORT.md) before opening an issue or pull request. Send security and conduct reports privately to [muzamil@mzml.dev](mailto:muzamil@mzml.dev). [Current verification](docs/OPEN_SOURCE_VERIFICATION_2026-10-13.md) records checks and remaining distribution gates. Historical pricing documents are superseded by this whole-app MIT policy.
 
 Competitor behavior informed the roadmap; no Mole code or assets were imported. [The verified comparison](docs/COMPETITOR_AUDIT_2026-10-11.md) distinguishes the GPLv3 CLI from the proprietary GUI.

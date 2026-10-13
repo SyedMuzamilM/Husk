@@ -1,19 +1,21 @@
 # Source and asset inventory
 
-This inventory is preparation for publication, not legal clearance.
+The owner approved whole-app MIT licensing and distribution of the original Husk logo and app icon on 2026-10-13. [LICENSE](../LICENSE) contains the grant; [NOTICE.md](../NOTICE.md) preserves third-party terms. This inventory records provenance, not independent legal certification.
 
-| Material | Current source | Publication action |
-|---|---|---|
-| Swift application and tests | Local repository history and current implementation work | Owner must confirm ownership of earlier code and acceptable contribution terms. TourKit is listed separately below. |
-| TourKit onboarding | Local v1.0.0 snapshot, upstream commit `0cac3a51069e105286635601e82117c195058ee9`, under Vendor/TourKit | MIT notice preserved in Vendor/TourKit/LICENSE and bundled as TourKit-LICENSE.txt. Local accessibility, motion and button-color patches are documented beside the source. No sample-app code or artwork is bundled. |
-| Tour illustrations | scripts/generate-tour-artwork.swift using the existing Husk logo and system symbols | Reproducible original composition; inherits existing logo and Apple-symbol rights requirements. No upstream TourKit images were copied. |
-| App icon and Husk brand images | Existing Assets.xcassets and root husk-logo.png | Confirm creation source and commercial/reuse rights. Duplicate unassigned icon variants were removed; assigned assets remain. |
-| stitch_husk_macos_interface_design | Existing design reference/export directory | Confirm export terms and rights to all images/fonts before including it publicly. It is not a Swift package dependency. |
-| Product/research documents | Local docs and cited official sources | Review quotations and old market/pricing claims. Planning documents now identify themselves as proposals. |
-| Mole comparison | Official Mole web pages/repositories cited in the competitor audit | Independent behavior analysis only. No Mole implementation or assets were imported. GPLv3 CLI and proprietary GUI terms differ. |
-| CI action | actions/checkout pinned to v4.2.2 commit | Used in CI, not bundled into the application. Review action updates by commit. |
-| Apple APIs and SF Symbols | System frameworks and platform symbols | Follow Apple platform/tooling terms; no third-party font is bundled by this implementation. |
+| Material | Source and treatment |
+|---|---|
+| Swift app, fixtures, scripts, and original docs | Repository history and contributor work; MIT. Contributors retain copyright and grant inbound MIT terms under CONTRIBUTING.md. |
+| TourKit | Vendored MIT v1.0.0 at commit `0cac3a51069e105286635601e82117c195058ee9`. Complete upstream notice remains in Vendor/TourKit/LICENSE and the app's TourKit-LICENSE.txt. Local patches are listed in Vendor/TourKit/README.md. No sample-app artwork is bundled. |
+| Husk logo and app icon | Existing Assets.xcassets and root husk-logo.png. Owner confirmed distribution rights. MIT covers original Husk artwork. |
+| Tour illustrations | Reproducible composition from scripts/generate-tour-artwork.swift using Husk artwork and system symbols. Apple's symbol rights remain subject to Apple's terms. |
+| Design reference exports | Historical files under stitch_husk_macos_interface_design. Not a build dependency. HTML links external Tailwind, Google Fonts/Material Symbols, and hosted images. Their providers' terms continue to apply; Husk's MIT grant does not relicense those materials. See the directory README. |
+| Product/research documents | Original writing with cited primary sources. Old pricing, competitor claims, and architecture proposals are marked historical. Current README, architecture, roadmap, and safety policy take precedence. |
+| Mole research | Independent behavior analysis with pinned source links in the competitor and AI storage docs. No Mole code or assets were imported. GPL code cannot be accepted as an MIT contribution without compatible rights. |
+| CI actions | Commit-pinned actions/checkout, used by CI and not bundled. Dependabot proposes action updates for review. |
+| Apple APIs and SF Symbols | System frameworks and platform symbols under Apple's terms. No third-party font is bundled in the native app. |
 
-A limited Git-history scan examined 367 unique objects on 2026-10-11 for high-confidence private-key, AWS access-key, GitHub-token, and OpenAI-style token patterns. It found no matching file paths. This is not exhaustive secret detection and does not prove that credentials never entered history. CI/release credentials are not present in this checkout.
+The app bundles matching copies of the root MIT license and TourKit notice. `scripts/check-repository.py` verifies them before builds, including from source archives.
 
-Do not add LICENSE until the actual owner approves the license and copyright attribution. Do not assume a design reference or generated logo has automatically cleared rights. Private vulnerability reporting, moderation contact, and contribution terms still need owner setup.
+A limited history scan on 2026-10-11 examined 367 unique objects for high-confidence private-key, AWS-key, GitHub-token, and OpenAI-style token patterns without a match. The 2026-10-13 scan checked 355 historical blobs and 207 current files with zero matches; see the current verification record. Pattern matching is not exhaustive and does not prove credentials never entered history. Enable GitHub secret scanning and push protection when repository settings permit it. Never commit signing keys, notary credentials, or private diagnostic data.
+
+Private security and conduct reports go to muzamil@mzml.dev. The repository owner controls publication and GitHub security settings. No publication or advisory-setting change is implied by the local license commit.

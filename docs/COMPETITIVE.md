@@ -1,3 +1,5 @@
+> Historical product plan. Current implementation is documented in README.md and ARCHITECTURE.md. Whole-app MIT licensing supersedes any paid-tier or commercial-license proposals here.
+
 # Competitive Analysis — Husk
 
 Derived from [`research.md`](./research.md). Use this for positioning, feature prioritization, and marketing claims (keep claims honest).

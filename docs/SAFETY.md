@@ -1,134 +1,38 @@
-# Safety & Trust Policy — Husk
+# Safety policy
 
-Non-negotiable product rules. If a feature conflicts with this document, change the feature.
+Husk shows exact paths and risks before moving user-selected items to Trash. A feature that cannot meet this policy stays inspection-only. The app runs unprivileged and unsandboxed; its checks are not isolation from malicious software running as the same user.
 
----
+## Selection and review
 
-## 1. Core tenets
+| Label | Meaning | Selection |
+|---|---|---|
+| Safe | A documented regenerable cache with low expected loss | Eligible for the explicit Select Safe action |
+| Review | Removal may reset state, remove diagnostics, or require downloads | User selects it |
+| Caution | May contain personal or hard-to-replace data | User selects and acknowledges the risk in review |
+| Protected | Credentials, system data, excluded storage, or unverified removal policy | Inspection only or omitted entirely |
 
-1. **Show before you act** — Users see exact paths and sizes before any cleanup.  
-2. **Trash, never shred** — User data deletion uses `FileManager.trashItem` (or equivalent Trash).  
-3. **No fake junk** — Never count APFS purgeable space, Time Machine locals, or iCloud placeholders as “cleaned junk.”  
-4. **Default to conservative** — Risky items start unchecked.  
-5. **SIP is sacred** — Protected system paths are never selectable for delete.  
-6. **Local by default** — File lists and metrics do not leave the device.  
-7. **Agents don’t get a blank check** — MCP mutations require human approval.
+Age, size, and a directory name never establish disposability. AI cache leaves require complete measurements and activity checks; AI sessions, worktrees, installed versions, and models remain protected. Project cache discovery is opt-in and inspection-only.
 
----
+## Filesystem boundary
 
-## 2. Safety labels
+Block protected system paths, home roots, credentials, cloud storage, other users' files, unsafe symlink components, exclusions, and ancestors containing protected or excluded data. Exact ownership and path evidence are required for app-related files. Shared containers and fuzzy display-name matches do not qualify.
 
-| Label | Definition | Default selection | Delete allowed |
-|---|---|---|---|
-| **Safe** | Regenerable caches/logs with low regret | User preference (off by default recommended) | Yes → Trash |
-| **Review** | Likely OK but may reset app state | Off | Yes → Trash after user opt-in |
-| **Caution** | May include user-generated or hard-to-replace data | Off + extra confirm | Yes only after confirm sheet |
-| **Protected** | OS/SIP/critical | N/A | No |
+The shared removal service prepares an immutable plan with identities and a five-minute expiry. It serializes execution, rejects replay, and rechecks policy, identity, ownership, exclusions, and known active owners before each move. Unknown ownership is not evidence of safety. Confirmation always applies to the reviewed snapshot, not a changing selection.
 
-Every row in Clean/Uninstall must show a label and a short reason (e.g. “Browser cache — recreated automatically”).
+Use Foundation's Trash API. No permanent deletion, automatic Trash emptying, arbitrary-shell cleanup rules, or privileged cleanup is allowed. Report each destination, skip, failure, cancellation, and history-write error. Do not describe a partial operation as fully successful.
 
----
+Foundation's path-based move has a residual race after validation. Folder-root metadata can miss interior edits. These limits must remain documented rather than hidden behind claims of absolute safety. Restoration uses Finder's Put Back when available; it is not guaranteed recovery or a substitute for backups.
 
-## 3. Path deny list (minimum)
+## Measurement and process controls
 
-Never offer for deletion (extend during implementation):
+Allocated sizes are estimates. Shared APFS blocks, snapshots, hardlinks, and Trash retention mean selected bytes are not promised freed bytes. Never count purgeable capacity or undownloaded cloud placeholders as junk. Partial or unavailable measurements must remain visible.
 
-- Anything under SIP-protected system locations  
-- `/System`, `/usr` (except documented safe caches if any — default deny)  
-- Keychains, passwords, mail indexes without explicit expert mode (v1: deny)  
-- User home root blanket deletes  
-- Active project source trees (only known artifact dirs like `DerivedData`, `node_modules`)  
+Scans and subprocesses need bounded work, output limits, cancellation, and an explicit owner. Long-running work must not retain a closed view model. Process quit requests revalidate identity and user ownership. Force Quit requires separate confirmation; a sent request does not prove that a process exited.
 
-Developer profiles must target **known artifact directories**, not “delete large folders in ~/code.”
+## Data and communication
 
----
+Keep file lists, metrics, and optional operation history local. Do not add analytics, remote diagnostics, or update networking without documenting the behavior and reviewing it. External source/support links open only when the user follows them.
 
-## 4. Deletion rules
+Do not claim that Husk removes malware, guarantees a speed increase, securely erases data, or is leak-free. Performance claims need the measured workload, toolchain, and limits. A passing fixture suite is evidence for those cases, not a security certification.
 
-| Rule | Detail |
-|---|---|
-| API | Trash only in v1 |
-| Batch | Partial failure reported; continue when safe |
-| Undo | “Undo” = restore from Trash (Finder); communicate that |
-| Empty Trash | User responsibility; we may remind, never force |
-| Admin | Only for OS-required maintenance tasks, never for casual cache clean |
-
----
-
-## 5. Uninstaller rules
-
-- Never remove another app’s files without bundle/team/path correlation confidence  
-- Prefer false negatives (leave leftover) over false positives (delete wrong app data)  
-- Show confidence / match reason in UI when possible  
-- System apps / Apple-protected apps: uninstall disabled or strongly warned  
-
----
-
-## 6. Developer & AI adapters
-
-| Adapter | Hard rule |
-|---|---|
-| Xcode | Do not touch source projects; only DerivedData/Archives/DeviceSupport as opted |
-| Simulator | Prefer `xcrun simctl` over raw directory deletes when mutating devices |
-| node_modules | Only directories explicitly listed from scan results |
-| Ollama / LM Studio | Prefer manifest-aware orphan detection; warn before removing models |
-
----
-
-## 7. Monitoring & helper
-
-- Privileged helper exposes **read-only metrics** APIs only (v1)  
-- No remote shell, no arbitrary command execution endpoint  
-- Process kill requires confirm for Force Quit  
-
----
-
-## 8. MCP / AI agent policy
-
-| Operation | Policy |
-|---|---|
-| Read disk free, list processes, list safe targets | Allowed (licensed) |
-| Propose cleanup set | Allowed |
-| Execute cleanup | **Human confirmation** in UI (or explicit typed confirm policy) |
-| Kill process | Human confirmation |
-| Export file contents to agent | **Not provided** (paths/sizes only) |
-
-Log agent-initiated proposals/actions locally for user audit.
-
----
-
-## 9. Communications policy
-
-### Allowed claims
-
-- “Preview every file before cleaning”  
-- “Moves items to Trash”  
-- “No telemetry”  
-- “Does not count purgeable space as junk”  
-
-### Forbidden claims
-
-- “Makes your Mac X% faster” without evidence  
-- “Removes viruses” (out of scope)  
-- “Secure erase / military wipe”  
-- Inflated GB numbers from non-junk sources  
-
----
-
-## 10. Incident response
-
-If a user reports wrong-file deletion:
-
-1. Treat as **P0**  
-2. Reproduce with path rules  
-3. Patch classifier; add regression fixture  
-4. Improve confirm UX if needed  
-5. Document in release notes  
-
----
-
-## 11. Alignment with open-source ethics
-
-Husk intentionally aligns with **PureMac**-style safety and **Mole**-style transparency, while rejecting **CleanMyMac**-style fear marketing.
-
-See [`COMPETITIVE.md`](./COMPETITIVE.md) and [`research.md`](./research.md).
+Report suspected wrong-file removal privately to [muzamil@mzml.dev](mailto:muzamil@mzml.dev). Investigate with disposable data, repair the policy at its shared boundary, add a regression, and document affected versions before disclosure. See [security](../SECURITY.md) and [rule requirements](RULES.md).

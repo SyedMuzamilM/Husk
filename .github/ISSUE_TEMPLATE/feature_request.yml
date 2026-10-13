@@ -1,0 +1,17 @@
+name: Feature request
+description: Propose a specific storage, monitoring, or usability improvement.
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem and example
+      description: What are you trying to do? Describe a concrete example without personal data.
+    validations:
+      required: true
+  - type: textarea
+    id: behavior
+    attributes:
+      label: Proposed behavior
+      description: Explain the expected workflow, alternatives, and any data-loss or permission implications.
+    validations:
+      required: true
