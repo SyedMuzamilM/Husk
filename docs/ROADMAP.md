@@ -12,7 +12,7 @@ The code and repository preparation can be reviewed locally. Before distributing
 - Complete keyboard and VoiceOver walkthroughs and longer GUI memory/resource profiling across window close, sleep, wake, and repeated scans.
 - Sign with Developer ID, notarize, test Gatekeeper on a clean machine, and publish artifacts tied to a source revision and checksum.
 
-See [the release process](RELEASING.md) and [current verification](OPEN_SOURCE_VERIFICATION_2026-10-13.md). The owner will publish the repository separately; local commits do not change repository visibility.
+See [the release process](RELEASING.md) and [current verification](VERIFICATION.md). The owner will publish the repository separately; local commits do not change repository visibility.
 
 ## Next useful improvements
 
@@ -33,8 +33,8 @@ Caches from supported tools can be reviewed now. Sessions, models, working copie
 | Installed-version pruning | Active executable resolution, updater locks, references, and a retained rollback version |
 | Model removal | Manifest references, active loaders, shared blobs, and clear re-download costs |
 
-See [AI storage policy](AI_STORAGE.md) and its linked discussion page. No automatic or permanent deletion is planned. A future MCP interface needs its own security design; it is not implemented.
+See [AI storage policy](AI_STORAGE.md). No automatic or permanent deletion is planned. A future MCP interface needs its own security design; it is not implemented.
 
 ## Inspiration and licensing
 
-Mole informed exact-path review, exclusions, developer caches, and maintenance workflows. Husk implements these independently in Swift. Reusing GPL code would require a separate licensing decision and cannot be treated as an MIT contribution. Existing comparison documents retain source links and reviewed revisions.
+Mole informed exact-path review, exclusions, developer caches, and maintenance workflows. Husk implements these independently in Swift. Reusing GPL code would require a separate licensing decision and cannot be treated as an MIT contribution. The AI storage guide retains primary-source links and the reviewed Mole revision.

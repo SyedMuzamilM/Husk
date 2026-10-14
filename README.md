@@ -12,9 +12,9 @@ Requires macOS 14 or later and Xcode 26.2 or later with Swift 6.2. Only the curr
 - Nested app discovery and exact bundle-ID data associations. Shared group containers and fuzzy name matches are excluded; personal data requires acknowledgement.
 - CPU, estimated memory, pressure/swap when available, actual volume free capacity, and process CPU/RSS. Quit requests revalidate process identity and user ownership.
 - Quick Look troubleshooting, system/light/dark appearance, persistent exclusions, and optional local operation history.
-- Apple-style TourKit welcome slideshow with Husk artwork, back/skip controls, keyboard navigation and Reduce Motion. Optional disk-access setup follows the tour; replay it from Settings. [Integration and layout verification](docs/ONBOARDING_AND_LAYOUT_VERIFICATION_2026-10-12.md).
+- Apple-style TourKit welcome slideshow with Husk artwork, back/skip controls, keyboard navigation and Reduce Motion. Optional disk-access setup follows the tour; replay it from Settings. [Verification](docs/VERIFICATION.md).
 
-Project cache discovery is opt-in and inspection-only. Bulk project/dependency removal, whole AI histories/models/VMs, automatic deletion, emptying Trash, MCP, Rust, SQLite, billing, and menu-bar monitoring are not implemented. Older product documents describe proposals, not shipped functionality.
+Project cache discovery is opt-in and inspection-only. Bulk project/dependency removal, whole AI histories/models/VMs, automatic deletion, emptying Trash, MCP, Rust, SQLite, billing, and menu-bar monitoring are not implemented.
 
 ## Build and test
 
@@ -30,7 +30,7 @@ open /tmp/husk-build/Build/Products/Debug/Husk.app
 
 Unsigned local builds may need macOS privacy permissions. Full Disk Access is optional for limited scans. The app deliberately excludes credentials and cloud locations even when broad read access is available. No administrator password is needed.
 
-Husk keeps its original compact rail, warm amber actions and rounded panels, with system, light and dark appearance. AI Storage inventories recognized caches, sessions, working copies, models and installed tools. Only verified cache leaves can be selected for reviewed cleanup. Sessions, model weights, worktrees and version stores remain inspection-only. See [AI storage policy and sources](docs/AI_STORAGE.md) and the [remaining policy decisions](docs/AI_STORAGE_DISCUSSION.html).
+Husk keeps its original compact rail, warm amber actions and rounded panels, with system, light and dark appearance. AI Storage inventories recognized caches, sessions, working copies, models and installed tools. Only verified cache leaves can be selected for reviewed cleanup. Sessions, model weights, worktrees and version stores remain inspection-only. See [AI storage policy and sources](docs/AI_STORAGE.md) and the [roadmap](docs/ROADMAP.md).
 
 Tests use disposable fixtures and inject the move operation; they never send existing user data to Trash. Build Release with the same command and `-configuration Release`. Run `scripts/verify.sh` for the full local verification sequence, including a universal Release build. Run `scripts/profile-sizing.sh` for an opt-in 100K-entry service memory check using disposable fixtures; its default RSS budget is 160 MiB. This profiles the sizing service, not the full GUI. After a Debug build, run `scripts/ui-smoke.sh` to capture fixture screens in light/dark mode at 960×640 and 1200×720. The local runner requires Screen Recording access, verifies visible control labels, tests scan-to-results table heights with no selection, clicks Select Safe and walks the tour with mouse/keyboard input. It never runs cleanup. Set `HUSK_UI_ASSETS` if Assets.car is outside the default `/tmp/husk-ui-build` location.
 
@@ -40,12 +40,14 @@ Sizes estimate allocated bytes, not guaranteed freed space. APFS clones, snapsho
 
 Identity checks detect item replacement and root metadata changes, not every edit inside a selected folder. Foundation's path-based Trash API retains a small race between validation and moving. No path policy can prove arbitrary user data is disposable. Read the exact paths and risks before confirming. Restore using Finder's Put Back when available; Husk records destinations but does not automate restoration.
 
-See [the original audit](docs/PROJECT_AUDIT_2026-10-11.md), [fix status](docs/AUDIT_RESOLUTION.md), [security policy](SECURITY.md), [privacy](docs/PRIVACY.md), and [contributing](CONTRIBUTING.md).
+See [audit resolution](docs/AUDIT_RESOLUTION.md), [security policy](SECURITY.md), [privacy](docs/PRIVACY.md), and [contributing](CONTRIBUTING.md).
 
 ## Open-source status
 
 The entire app, tests, original documentation, and original artwork use the [MIT license](LICENSE). Development continues on `main`; there is no paid feature gate. See [notices](NOTICE.md) for TourKit and Apple materials. The owner has approved the license and original brand assets; repository publication is a separate maintainer action.
 
-Read [contributing](CONTRIBUTING.md), the [code of conduct](CODE_OF_CONDUCT.md), and [support](SUPPORT.md) before opening an issue or pull request. Send security and conduct reports privately to [muzamil@mzml.dev](mailto:muzamil@mzml.dev). [Current verification](docs/OPEN_SOURCE_VERIFICATION_2026-10-13.md) records checks and remaining distribution gates. Historical pricing documents are superseded by this whole-app MIT policy.
+Read [contributing](CONTRIBUTING.md), the [code of conduct](CODE_OF_CONDUCT.md), and [support](SUPPORT.md) before opening an issue or pull request. Send security and conduct reports privately to [muzamil@mzml.dev](mailto:muzamil@mzml.dev). [Verification](docs/VERIFICATION.md) records checks and remaining distribution gates.
 
-Competitor behavior informed the roadmap; no Mole code or assets were imported. [The verified comparison](docs/COMPETITOR_AUDIT_2026-10-11.md) distinguishes the GPLv3 CLI from the proprietary GUI.
+Mole informed independent research; no Mole code or assets were imported. Reviewed source links are recorded in [AI storage](docs/AI_STORAGE.md).
+
+See the [documentation index](docs/README.md) for architecture, policy, verification, and release guides.

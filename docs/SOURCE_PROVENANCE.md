@@ -8,9 +8,8 @@ The owner approved whole-app MIT licensing and distribution of the original Husk
 | TourKit | Vendored MIT v1.0.0 at commit `0cac3a51069e105286635601e82117c195058ee9`. Complete upstream notice remains in Vendor/TourKit/LICENSE and the app's TourKit-LICENSE.txt. Local patches are listed in Vendor/TourKit/README.md. No sample-app artwork is bundled. |
 | Husk logo and app icon | Existing Assets.xcassets and root husk-logo.png. Owner confirmed distribution rights. MIT covers original Husk artwork. |
 | Tour illustrations | Reproducible composition from scripts/generate-tour-artwork.swift using Husk artwork and system symbols. Apple's symbol rights remain subject to Apple's terms. |
-| Design reference exports | Historical files under stitch_husk_macos_interface_design. Not a build dependency. HTML links external Tailwind, Google Fonts/Material Symbols, and hosted images. Their providers' terms continue to apply; Husk's MIT grant does not relicense those materials. See the directory README. |
-| Product/research documents | Original writing with cited primary sources. Old pricing, competitor claims, and architecture proposals are marked historical. Current README, architecture, roadmap, and safety policy take precedence. |
-| Mole research | Independent behavior analysis with pinned source links in the competitor and AI storage docs. No Mole code or assets were imported. GPL code cannot be accepted as an MIT contribution without compatible rights. |
+| Documentation | Original implementation and policy writing with cited primary sources. Obsolete plans and prototype exports were removed from the current tree; earlier versions remain in Git history. |
+| Mole research | Independent behavior analysis with pinned source links in the AI storage guide. No Mole code or assets were imported. GPL code cannot be accepted as an MIT contribution without compatible rights. |
 | CI actions | Commit-pinned actions/checkout, used by CI and not bundled. Dependabot proposes action updates for review. |
 | Apple APIs and SF Symbols | System frameworks and platform symbols under Apple's terms. No third-party font is bundled in the native app. |
 

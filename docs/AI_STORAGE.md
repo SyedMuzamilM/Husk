@@ -47,6 +47,6 @@ Relevant source files:
 
 ## Remaining work
 
-Session deletion requires owner-specific database/index consistency, exports and active-session checks. Worktree removal requires nested-repository, ignored-file, dirty-state and activity checks plus Git-managed removal. Version pruning requires active executable resolution, rollback retention, updater locks and fresh reference checks. See [AI_STORAGE_DISCUSSION.html](AI_STORAGE_DISCUSSION.html) for the proposed policy choices. None of these operations are presented as already implemented.
+Session deletion requires owner-specific database/index consistency, exports and active-session checks. Worktree removal requires nested-repository, ignored-file, dirty-state and activity checks plus Git-managed removal. Version pruning requires active executable resolution, rollback retention, updater locks and fresh reference checks. See [the roadmap](ROADMAP.md#ai-maintenance-requiring-design-work) for the evidence needed before adding these operations. None of these operations are presented as already implemented.
 
 Quick Look maintenance now accurately runs `qlmanage -r cache` after a native confirmation. RAM purges, privileged DNS resets and automatic process termination are not added.

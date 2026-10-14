@@ -1,64 +1,90 @@
-# Verification record, 2026-10-11
+# Verification
 
-Application repairs start at `8139214`; a subsequent memory follow-up changes only the traversal object lifetime.
+Latest application verification: 2026-10-13.
 
-Development environment: macOS 27.0 build 26A428, Apple Silicon, Xcode 27.0 build 27A5218g, Swift 6.4, local APFS SSD. This is not a compatibility claim for the macOS 14 minimum or Xcode 26.2 minimum. Remote CI has not run.
+This pass follows the compact onboarding fix at `aa90aaf`. It incorporates the earlier listing/release repairs and fixes lifecycle, cancellation, stale-state, and large-result performance regressions. The entire app is MIT licensed on `main`. Private security and conduct reports go to muzamil@mzml.dev. No repository visibility change, push, signing, or notarization was performed.
 
-From Husk:
+## Corrections
+
+- Analyze no longer returns to loading when cancelled immediately after Scan. It ignores obsolete loads and does not rescan after a removal completes in a closed window.
+- Clean, Analyze, Apps, and AI tasks release their models while work is suspended. Models own and cancel their tasks; stale completion and failure paths cannot replace a newer result.
+- Apps refresh clears a disappeared selected app and its old related files. AI worktree inspection clears old results and has an owned cancellable task.
+- Window teardown and onboarding replay stop background work. UI fixtures skip protected-home permission probes. Free-space metadata runs through bounded I/O.
+- Cleanup caches filtered rows and selection totals. Bulk selection updates once per action. Fixed rules live in CleanTargetCatalog, discovery is bounded and streamed, and target dedup resolves paths once.
+- Review preparation resolves candidate paths once while preserving nested risks and ownership checks. Filesystem eligibility checks moved onto BlockingIO.
+- Directory listing streams and retains top-K rows, shares hardlink accounting, and enforces a global entry/time budget.
+- Native secondary controls use the existing darker amber in light mode. Primary filled buttons keep the original palette. Settings includes bundled MIT/TourKit licenses and source/report links.
+- Release builds use a clean committed archive. Verification checks pinned CI actions and byte-for-byte matching notices in source and built apps.
+
+## Evidence
+
+Development host: Apple Silicon, macOS 27, Xcode 27 beta, Swift 6.4, local APFS. Deployment remains macOS 14, with Xcode 26.2 / Swift 6.2 as the declared minimum. Local results do not validate those runtime/toolchain minima or Intel execution.
+
+| Check | Result |
+|---|---|
+| Swift suite | 60 tests across 16 suites; 56 active by default and four opt-in checks. Normal run passed in 6.383 seconds. |
+| Thread Sanitizer | Same normal fixture suite passed in 5.899 seconds; no race report. |
+| Address Sanitizer | Same normal fixture suite passed in 5.879 seconds; no memory-error report. |
+| Release-source tests | Eight disposable-repository regressions pass, covering dirty/untracked files, archive isolation, committed license/vendor contents, source changes, export rules, and unsupported submodules. |
+| Build | Debug and universal Release pass with signing disabled. `lipo` reports x86_64 and arm64. Both license resources match their originals. |
+| Native fixture UI | 94 captures in light/dark at 960x640 and 1200x720. Scan/results/rescan layout, filtering, selection, protected AI controls, review/results, and tour interaction checks pass. |
+| Production scene | 560x600 tour on launch/replay; Get started persists completion without Full Disk Access; main window expands to 960x640. |
+| Real Trash integration | A newly created disposable file passed through the production Foundation Trash mover, the returned destination retained the payload, and a programmatic move restored it. No existing user files were moved. This does not test Finder's Put Back command. |
+| Large listing | 100,000 entries visited, complete coverage, 100 rows retained, 99,900 omitted. 7.609 seconds, 27.56 MiB peak RSS and 12.09 MiB footprint. The 160 MiB service RSS budget passed. |
+| Credential-pattern scan | 355 historical Git blobs and 207 current files checked; zero high-confidence private-key, AWS-key, GitHub-token, or OpenAI-style-token matches. No historical blob exceeded the 5 MB scan cap. This is not exhaustive secret detection. |
+| Scripts | Shell syntax, repository policy checks, and Git whitespace checks pass. Disposable checker fixtures correctly reject a mismatched license and an unpinned CI action. |
+
+Swift 6.4 warns about immutable weak test locals; they remain compatible with the declared Swift 6.2 minimum. Xcode skips AppIntents metadata extraction because Husk does not use AppIntents. Neither warning is a test/build failure.
+
+The lifecycle tests were first run against the broken behavior. Immediate cancellation and suspended model-owner tests failed, then passed after the task changes. A separate test reproduced the late removal-triggered rescan before its generation check was added.
+
+## Measured fixture performance
+
+Optimized builds on the development host, with OS cache and background-process effects:
+
+| Workload | Before | After |
+|---|---:|---:|
+| 50 result reads / selection changes over 10,000 cleanup rows | 0.1456 s | 0.000097 s |
+| Deduplicate 1,000 cleanup targets | 27.68 s | 0.0836 s |
+| Select and clear 10,000 safe rows | Still running after 3 minutes; stopped | 0.0260 s |
+| Prepare a 300-item removal review | 0.6040 s | 0.2785 s |
+
+The bulk-selection issue came from rebuilding and sorting selected totals for every insertion/removal. It now assigns each set operation once. These measurements describe fixtures, not a whole-app speed guarantee or reclaimed storage. The earlier dedup/redraw baseline and the bulk-selection regression were separate runs.
+
+## Reproduce
+
+From the repository root:
 
 ```sh
-swift test --scratch-path /tmp/husk-fixes-tests
-swift test --scratch-path /tmp/husk-tsan-tests --sanitize=thread
-swift test --scratch-path /tmp/husk-asan-tests --sanitize=address
-HUSK_RUN_BENCHMARKS=1 swift test --scratch-path /tmp/husk-fixes-tests --filter BenchmarkTests
-xcodebuild -project Husk.xcodeproj -scheme Husk -configuration Debug \
-  -derivedDataPath /tmp/husk-fixed-build CODE_SIGNING_ALLOWED=NO build
-xcodebuild -project Husk.xcodeproj -scheme Husk -configuration Release \
-  -derivedDataPath /tmp/husk-fixed-build CODE_SIGNING_ALLOWED=NO build
+HUSK_VERIFY_ROOT=/tmp/husk-verification scripts/verify.sh
+HUSK_PROFILE_MODE=listing scripts/profile-sizing.sh
+HUSK_UI_ASSETS=/tmp/husk-verification/xcode/Build/Products/Debug/Husk.app/Contents/Resources/Assets.car \
+  scripts/ui-smoke.sh /tmp/husk-ui-captures
+HUSK_UI_WINDOW_ONLY=1 scripts/ui-smoke.sh
+cd Husk
+swift test --scratch-path /tmp/husk-tsan --sanitize=thread
+swift test --scratch-path /tmp/husk-asan --sanitize=address
+HUSK_RUN_INTERACTION_BENCHMARKS=1 swift test -c release --filter InteractionBenchmarks
+HUSK_RUN_TRASH_INTEGRATION=1 swift test --filter TrashIntegrationTests
 ```
 
-| Check | Observed result |
-|---|---|
-| Regression suite | 29 tests passed; one optional benchmark test skipped in the normal run. Swift Testing reports 30 total tests. Final run completed in 8.094 seconds. |
-| Thread Sanitizer | Same fixture suite passed in 8.746 seconds; no ThreadSanitizer race report in captured output. |
-| Address Sanitizer | Same fixture suite passed in 8.154 seconds; no AddressSanitizer memory error report in captured output. |
-| Large stdout/stderr | 300 KiB stdout plus stderr drained without pipe deadlock; timeout/output cap/cancellation fixtures pass. |
-| Resources | 10 production metrics samples show no host-right growth; 30 repeated commands show no file-descriptor growth after warm-up. Status model releases after owner release. |
-| Removal | Injected moves verify mixed success/failure, cancellation, expiry, running owners, symlink swaps, identity changes, protected paths, exclusions, nested risks, serialization, and replay rejection. |
-| Sizing | Largest hidden child survives top-K; package contents included; hardlinks counted once; protected/symlink roots denied; limits return partial. |
-| Builds | Debug and universal Release succeed, signing disabled, Swift 6 mode. `lipo -archs` confirms x86_64 and arm64. One unrelated Xcode metadata-extraction note for absent AppIntents dependency remains. |
-| Release scripts | bash syntax check passes. Missing-license release gate rejects stub identity/profile labels before signing or network calls. No real signing/notarization performed. |
-| App launch | Release app launches and creates an on-screen window. Window capture returned "could not create image from window". No visual, keyboard, or VoiceOver pass is claimed. |
-| HTML discussion | Previewed at desktop and mobile widths; no horizontal overflow or console errors. Fields generate a local text draft only. |
-| Git | Whitespace checks pass. Limited history scan examined 367 unique objects with no high-confidence key/token-pattern matches. No push or publication performed. |
+UI runners require local Screen Recording access. Ordinary tests inject removal. The opt-in Trash test explicitly exercises a real move and restore using only its own new fixture. It does not enumerate or empty the user's Trash.
 
-## Native traversal memory follow-up
+Logs and screenshots from this pass were written under `/tmp/husk-opensource-*`, with additional `/tmp/husk-bulk-selection-*`, `/tmp/husk-review-*`, and `/tmp/husk-trash-integration.log` records. They are local artifacts, not committed evidence bundles, and may be cleared by macOS.
 
-An optimized standalone probe compiled the actual sizing service and read the same 100K-entry empty-file fixture in two fresh processes. The initial implementation peaked at 543,244,288 bytes RSS, about 518.1 MiB, and 771,671,264 bytes physical footprint. Per-entry autorelease pools reduced those to 33,046,528 bytes RSS, about 31.5 MiB, and 17,023,672 bytes footprint. Both visited all 100,000 entries with complete coverage. Traversal times were 7.04 and 7.55 seconds. This identifies temporary Foundation object retention during the walk; it is not a full-GUI leak assessment.
+## Remaining release gates
 
-Reproduce the current service with `scripts/profile-sizing.sh`. It creates its own empty-file fixture, compiles the current service with optimization, reports `/usr/bin/time -l` memory values, checks a default 160 MiB RSS budget for 100K entries, and removes its temporary files. Override with HUSK_PROFILE_ENTRIES or HUSK_PROFILE_RSS_LIMIT_MB for experiments. A second script run completed in 8.20 seconds with 34.27 MiB peak RSS and passed the budget. The pre-pool baseline exceeds that budget. The budget is an isolated-service regression check, not a product-wide memory promise.
+- Maintainer publishes the repository, runs remote CI, and enables private vulnerability reporting and available repository protections. Email is the current private reporting route.
+- Maintainer supplies local signing/notary credentials; actual notarization, Gatekeeper on a clean machine, and public artifact distribution remain untested.
+- Test macOS 14 and Intel runtime compatibility, fresh-user disk-access flows, case-sensitive/external volumes, and interactive Finder restoration.
+- Complete VoiceOver/keyboard and long-session GUI allocation/energy profiling, including sleep/wake. Service memory/resource fixtures do not establish a leak-free GUI.
+- Foundation Trash and PID identity retain documented same-user race windows. Arbitrary unknown app activity is not fully attributable.
+- AI sessions, worktrees, installed versions, and model data remain inspection-only. New cleanup support requires tool-specific reference, activity, and recovery evidence.
 
-Benchmark fixtures use newly created empty files. Both local traversals completed for 10K and 100K entries. 10K took 0.847/0.785 seconds; 100K took 8.001/8.195 seconds. Cancellation completed 1.19/0.13 milliseconds after request. These are OS-cache-dependent metadata results, not a controlled cold benchmark, real-home speed promise, or freed-byte measurement.
+See [release preparation](RELEASING.md) for the distribution checklist and signing commands. A clean checkout is required for release-source verification.
 
-Sanitizers and object/resource fixtures are useful evidence for specific bugs. They do not prove the whole app is leak-free. Long Instruments allocation/footprint recordings, full window/sleep/wake flows, 1M entries, slow/network volumes, and real Trash/restore integration remain unverified. See AUDIT_RESOLUTION.md for residual policy and filesystem race limits.
+## Committed-source verification
 
-## Original design refinement and AI storage, 2026-10-11
+The final application/policy revision is `a403aa34e9fd3d84b8d7b92a239e3a80e26a3969`. A fresh temporary local clone passed the clean-source gate, and prepare-release-source.sh exported its committed files. The archive contained neither Git metadata nor the unrelated `idea/` directory. The full verify.sh sequence exited successfully from that archive, including repository checks, eight release-source tests, the Swift suite, Debug, universal Release, and both bundled-license comparisons. No signing credentials were used.
 
-The original compact rail, hidden title bar, centered cleanup hero, amber pills, subtle background glow and rounded panels are restored. Shared headers, readable light-mode labels and split inspectors carry that style through all seven sections, onboarding and removal sheets. Compact navigation is the default; Settings can show navigation labels. The welcome action stays visible while longer permission guidance scrolls.
-
-| Check | Observed result |
-|---|---|
-| Final core suite | 39 total tests in 13 suites, 38 active plus one skipped optional benchmark, passed in 6.915 seconds. |
-| Thread Sanitizer | Same suite passed in 6.707 seconds; no race report in captured output. |
-| Address Sanitizer | Same suite passed in 6.736 seconds; no memory-error report in captured output. |
-| AI policy | Fixed cache leaves vs lookalikes/parents, case variants, blocked/empty activity probes, protected/partial selections, redirected discovery and shared scanner rules pass. Fresh activity at execution prevents the injected Trash mover from running. |
-| Worktree integration | A disposable real Git repo and locked working copy report untracked changes while keeping contents and registrations intact. NUL-delimited paths preserve spaces/newlines. |
-| Native UI | 52 captures: 13 screens/states, light and dark, 960×640 and 1200×720. Visible control text verified with Vision at the minimum light size. An actual NSEvent click on Select Safe changes the model; AI selections and protected-session controls retain their policy. Screens cover start/results, applications, populated process metrics/table, maintenance, settings, onboarding and both removal sheets. |
-| Fixture isolation | UI runner suppresses live app enumeration, status sampling and history reads. Fixtures contain demonstration paths only. Capture targets only the runner's windows; no cleanup action executes. |
-| Builds | Final Debug and universal Release succeed with signing disabled. lipo reports x86_64 and arm64. |
-| Memory follow-up | Current 100K-entry sizing probe visited all entries in 7.588 seconds, peak RSS 34.39 MiB and footprint 16.25 MiB; 160 MiB RSS budget passed. No traversal implementation changed in the UI refinement. |
-| HTML | AI policy discussion checked at desktop/mobile widths in light/dark, no horizontal overflow or console errors; local-note download exercised. |
-
-Reproduce with `swift test --scratch-path /tmp/husk-ai-tests`, adding `--sanitize=thread` or `--sanitize=address` with separate scratch directories. Run `scripts/ui-smoke.sh` from the repo root after a Debug build; `HUSK_UI_ASSETS` can point to the built Assets.car. It needs local Screen Recording access. Captures are generated outside the repository. The fixture host uses fixed window sizes; Vision runs off the main actor using supported CPU compute stages, and transient ScreenCaptureKit stream-start errors have two bounded retries. Native controls are rendered in their active state.
-
-These captures verify rendering and one native selection action. They do not establish a full VoiceOver/keyboard walkthrough, real-home cleanup, compatibility with every supported OS, or a whole-app leak assessment. Sessions, worktrees, models and installed tools remain inspection-only. Grok has no verified standalone cache rule. Owner-specific retention and version pruning are listed in AI_STORAGE_DISCUSSION.html. No signing, notarization, push or publication was performed.
+Final native contrast verification produced 94 captures and 100 passing check messages. Later documentation consolidation does not alter the tested application code or build scripts. Earlier reports and audit artifacts are available in Git history.
