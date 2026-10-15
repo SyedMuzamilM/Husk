@@ -25,11 +25,15 @@ Each feature has a main-actor observable model. Models set loading state before 
 
 Cleanup caches sorted/filtered rows and selection totals when their inputs change. Views read these values instead of flattening and sorting the scan on every redraw. Tests inject suspended loads to verify stale-result rejection and model release without scanning the real home directory.
 
+Storage Map receives the same `CleanViewModel` as Cleanup. Its recommendations, selections and removal plans therefore share one owner. `StorageMapSummary` caches a non-overlapping catalog summary and path-policy index when scan categories change. Display categories never grant removal eligibility. Available capacity loads alongside a folder scan and uses the same cancellation generation. Moving reviewed items to Trash does not change the displayed actual free-space value into a predicted value.
+
 ## Filesystem work and measurements
 
 `BlockingIO` runs synchronous filesystem operations on an operation queue with four workers. Scanners bound their fan-out and progress updates. Cancellation is cooperative; a kernel call can outlive a deadline.
 
 `DirectorySizer` is the shared allocated-size implementation. Traversal streams entries, scopes temporary Foundation objects to each iteration, tracks hardlinks, and reports complete, partial, or unavailable coverage. Listings retain the largest K rows with shared entry/time budgets. The parent aggregate counts each observed hardlink once, while individual child sizes can overlap. APFS clones and snapshots mean estimates cannot promise freed bytes.
+
+`DiskAnalyzer` retains up to 100 immediate entries and previews up to six subfolders, each limited to 12 entries, 12,000 visited entries and 0.4 seconds. Omitted preview allocation receives a stable, inspection-only map tile. The startup overview uses four normal filesystem roots with individual 12-second/250,000-entry limits and an explicit unmeasured remainder. It avoids alternate Data-volume aliases that could bypass path-based privacy exclusions. Tests inject disposable roots and volume capacity. Map aggregate tiles cannot be opened or selected as removal targets.
 
 `CleanTargetCatalog` defines fixed cleanup locations. `CleanScanner` combines them with bounded cache/log discovery and optional project inspection. It resolves each candidate once and removes overlapping parents by walking ancestors. `AIStorageCatalog` owns fixed AI cache leaves and protected durable state. `ProjectArtifactService` and `GitWorktreeService` inspect only; they cannot delete projects or worktrees.
 

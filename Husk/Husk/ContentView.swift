@@ -65,7 +65,7 @@ struct ContentView: View {
                     switch section {
                     case .clean: CleanView(model: cleanModel)
                     case .aiStorage: AIStorageView(model: aiModel)
-                    case .analyze: AnalyzeView(model: analyzeModel)
+                    case .analyze: AnalyzeView(model: analyzeModel, cleanup: cleanModel)
                     case .apps: AppsView(model: appsModel)
                     case .status: StatusView(model: statusModel)
                     case .optimize: OptimizeView()

@@ -16,6 +16,7 @@ struct DiskNode: Identifiable, Sendable {
     let issues: [OperationIssue]
     let byteCount: Int64
     let children: [DiskNode]
+    let isAggregate: Bool
 
     init(
         id: UUID = UUID(),
@@ -25,7 +26,7 @@ struct DiskNode: Identifiable, Sendable {
         byteCount: Int64 = 0,
         children: [DiskNode] = [],
         completeness: ScanCompleteness = .complete,
-        omittedCount: Int = 0, omittedBytes: Int64 = 0, issues: [OperationIssue] = []
+        omittedCount: Int = 0, omittedBytes: Int64 = 0, issues: [OperationIssue] = [], isAggregate: Bool = false
     ) {
         self.id = id
         self.name = name
@@ -37,9 +38,19 @@ struct DiskNode: Identifiable, Sendable {
         self.omittedCount = omittedCount
         self.omittedBytes = omittedBytes
         self.issues = issues
+        self.isAggregate = isAggregate
     }
 
     var url: URL { URL(fileURLWithPath: path) }
+
+    var mapChildren: [DiskNode] {
+        let remainder = max(0, byteCount - children.reduce(0) { $0 + $1.byteCount })
+        guard remainder > 0, !children.isEmpty || omittedBytes > 0 else { return children }
+        var stableID = id.uuid
+        stableID.0 ^= 0xff
+        return children + [DiskNode(id: UUID(uuid: stableID), name: "Other & unmeasured", path: path,
+            isDirectory: false, byteCount: remainder, completeness: .partial, isAggregate: true)]
+    }
 
     func sortedChildren(bySize: Bool = true) -> [DiskNode] {
         if bySize {

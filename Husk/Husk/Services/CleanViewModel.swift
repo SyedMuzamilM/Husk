@@ -49,6 +49,7 @@ final class CleanViewModel {
     private(set) var selectedBytes: Int64 = 0
     private(set) var totalBytes: Int64 = 0
     private(set) var itemCount = 0
+    private(set) var storageSummary = StorageMapSummary(items: [])
     private(set) var isPreparingRemoval = false
 
     private func rebuildIndex() {
@@ -56,6 +57,7 @@ final class CleanViewModel {
         itemsByID = DictUtil.uniquingFirst(allItems.map { ($0.id, $0) })
         totalBytes = allItems.reduce(0) { $0 + $1.byteCount }
         itemCount = allItems.count
+        storageSummary = StorageMapSummary(items: allItems)
         refreshFilteredItems()
         refreshSelection()
     }
@@ -173,6 +175,12 @@ final class CleanViewModel {
     func selectAllSafe() {
         guard !isBusy else { return }
         selectedIDs.formUnion(filteredItems.filter { $0.safety == .safe }.map(\.id))
+    }
+
+    /// The map shows all catalog locations, independently of Cleanup's filters.
+    func selectMapCaches() {
+        guard !isBusy else { return }
+        selectedIDs.formUnion(storageSummary.safeItems.map(\.id))
     }
 
     func clearSelection() {

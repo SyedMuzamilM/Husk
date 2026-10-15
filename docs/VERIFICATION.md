@@ -1,6 +1,26 @@
 # Verification
 
-Latest application verification: 2026-10-13.
+Latest application verification: 2026-10-15.
+
+## Storage Map overview, 2026-10-15
+
+The native Storage Map now has actual volume capacity, shared cleanup recommendations, nested category/cleanup tiles and a bounded startup disk overview. Cleanup selections and removal plans use the existing Cleanup model and reviewed Trash service. No new cleanup rule or permanent-deletion path was added.
+
+`scripts/verify.sh` passed on the development host with 70 tests across 17 suites, including four opt-in checks disabled in the normal run, plus repository checks, eight release-source tests, Debug and universal Release builds, bundled-license comparisons and Git whitespace checks. The added fixtures cover overlapping recommendations, conservative risk labels, partial-cache selection, omitted/hidden map allocation, bounded nested previews, injected startup roots, stale capacity results, cross-volume breadcrumb capacity and nested-folder navigation. Tests do not scan a real home directory or move existing user data.
+
+The native fixture runner produced 20 captures and 24 passing checks, including light and dark storage views at 960x640 and 1200x720. It checked storage scan-to-results table transitions, map/list switching and selection of verified caches. It also captured cleanup colors and the selected state. Local screenshots use example data and are stored under `/tmp/husk-storage-map-final-screens`; logs are `/tmp/husk-storage-map-final-ui.log` and `/tmp/husk-storage-map-verification.log`.
+
+Reproduce the storage UI check after building:
+
+```sh
+HUSK_UI_SCREEN_FILTER=storage \
+HUSK_UI_ASSETS=/tmp/husk-storage-map-verification/xcode/Build/Products/Debug/Husk.app/Contents/Resources/Assets.car \
+  scripts/ui-smoke.sh /tmp/husk-storage-map-final-screens
+```
+
+The startup overview measures Home, Applications, Library and `/opt` with existing privacy exclusions and per-root budgets. Remaining allocation is explicitly System & unmeasured, not a removal candidate. Nested previews are bounded and do not establish that a directory is disposable. Full VoiceOver, macOS 14 and Intel runtime checks remain release gates. No release, signing, notarization or installation was performed during verification.
+
+## Earlier application verification, 2026-10-13
 
 This pass follows the compact onboarding fix at `aa90aaf`. It incorporates the earlier listing/release repairs and fixes lifecycle, cancellation, stale-state, and large-result performance regressions. The entire app is MIT licensed on `main`. Private security and conduct reports go to muzamil@mzml.dev. No repository visibility change, push, signing, or notarization was performed.
 
