@@ -14,6 +14,8 @@ Start with the [project README](../README.md) for capabilities, installation, an
 
 - [Contributing](../CONTRIBUTING.md), [code of conduct](../CODE_OF_CONDUCT.md), and [support](../SUPPORT.md).
 - [Security reporting](../SECURITY.md), [license](../LICENSE), and [third-party notices](../NOTICE.md).
+- [Licensing guide](LICENSING.md): private use, redistribution limits, prior MIT rights, and hosting terms.
+- [Reddit drafts and images](launch/REDDIT_POSTS.md): feedback and launch copy with real fixture screenshots.
 - [Verification](VERIFICATION.md): reproducible checks and recorded results.
 - [Release preparation](RELEASING.md): compatibility checks, signing, and notarization.
 - [Roadmap](ROADMAP.md): proposed improvements and AI maintenance requirements.

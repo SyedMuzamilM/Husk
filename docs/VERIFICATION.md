@@ -1,6 +1,16 @@
 # Verification
 
-Latest application verification: 2026-10-15.
+Latest application verification: 2026-10-19.
+
+## Source-available license and launch materials, 2026-10-19
+
+The root and bundled Husk licenses now use the source-available terms. Settings labels and current documentation match. TourKit's MIT notices are unchanged, and the previous Husk MIT notice is preserved byte for byte in `docs/licenses/Husk-MIT-legacy.txt`. Historical verification entries below describe the licenses at their respective revisions.
+
+`scripts/verify.sh` passed with eight release-source tests, the Swift suite reporting 70 tests across 17 suites with four opt-in checks skipped, Debug and universal Release builds, bundled-license comparisons, repository policy checks, and Git whitespace checks. Log: `/tmp/husk-source-available-verification.log`.
+
+The existing native fixture runner passed with `HUSK_UI_SCREEN_FILTER=settings`, including light/dark Settings captures at 960x640 and 1200x720 plus its shared transition and onboarding checks. Captures are in `/tmp/husk-source-available-settings`; the log is `/tmp/husk-source-available-settings.log`. These default Settings captures show the top of the form; they do not independently verify the About section below the fold or the license-opening buttons.
+
+The [Reddit materials](launch/REDDIT_POSTS.md) contain three drafts and three 1600x1200 PNGs composed from the tracked native example-data screenshots. The images were visually inspected, and the inline gallery loaded all three at desktop and mobile widths without horizontal overflow. Relative Markdown links in the changed documents resolve locally. The repository was private and had no published release when checked. No push, publication, signing, notarization, or Reddit posting was performed.
 
 ## Storage Map overview, 2026-10-15
 
@@ -22,7 +32,7 @@ The startup overview measures Home, Applications, Library and `/opt` with existi
 
 ## Earlier application verification, 2026-10-13
 
-This pass follows the compact onboarding fix at `aa90aaf`. It incorporates the earlier listing/release repairs and fixes lifecycle, cancellation, stale-state, and large-result performance regressions. The entire app is MIT licensed on `main`. Private security and conduct reports go to muzamil@mzml.dev. No repository visibility change, push, signing, or notarization was performed.
+This pass follows the compact onboarding fix at `aa90aaf`. It incorporates the earlier listing/release repairs and fixes lifecycle, cancellation, stale-state, and large-result performance regressions. At the time of this verification, the entire app used MIT on `main`. The current [source-available terms](LICENSING.md) do not revoke that earlier grant. Private security and conduct reports go to muzamil@mzml.dev. No repository visibility change, push, signing, or notarization was performed.
 
 ## Corrections
 
@@ -33,7 +43,7 @@ This pass follows the compact onboarding fix at `aa90aaf`. It incorporates the e
 - Cleanup caches filtered rows and selection totals. Bulk selection updates once per action. Fixed rules live in CleanTargetCatalog, discovery is bounded and streamed, and target dedup resolves paths once.
 - Review preparation resolves candidate paths once while preserving nested risks and ownership checks. Filesystem eligibility checks moved onto BlockingIO.
 - Directory listing streams and retains top-K rows, shares hardlink accounting, and enforces a global entry/time budget.
-- Native secondary controls use the existing darker amber in light mode. Primary filled buttons keep the original palette. Settings includes bundled MIT/TourKit licenses and source/report links.
+- Native secondary controls use the existing darker amber in light mode. Primary filled buttons keep the original palette. At this revision, Settings included bundled Husk MIT/TourKit licenses and source/report links.
 - Release builds use a clean committed archive. Verification checks pinned CI actions and byte-for-byte matching notices in source and built apps.
 
 ## Evidence

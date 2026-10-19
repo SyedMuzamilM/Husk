@@ -1,6 +1,6 @@
 # Roadmap
 
-The entire Husk app is MIT licensed. Development continues on `main`; there is no separate proprietary edition or paid feature gate. These priorities describe proposed work, not delivery dates.
+Husk uses the [Husk Source-Available License](../LICENSE), with private use and modification permitted and general redistribution restricted. Development continues on `main`; there is no paid feature gate. These priorities describe proposed work, not delivery dates.
 
 ## Public beta gates
 
@@ -37,4 +37,4 @@ See [AI storage policy](AI_STORAGE.md). No automatic or permanent deletion is pl
 
 ## Inspiration and licensing
 
-Mole informed exact-path review, exclusions, developer caches, and maintenance workflows. Husk implements these independently in Swift. Reusing GPL code would require a separate licensing decision and cannot be treated as an MIT contribution. The AI storage guide retains primary-source links and the reviewed Mole revision.
+Mole informed exact-path review, exclusions, developer caches, and maintenance workflows. Husk implements these independently in Swift. Reusing GPL code would require a separate licensing decision; it cannot be offered under Husk's restricted distribution terms without compatible rights. The AI storage guide retains primary-source links and the reviewed Mole revision.

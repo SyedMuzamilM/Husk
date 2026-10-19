@@ -1,6 +1,14 @@
 # Husk
 
-Husk is an experimental native macOS utility for reviewing storage, moving selected items to Trash, uninstalling apps, and observing system processes. It uses Swift 6, SwiftUI, Foundation, AppKit, and Darwin. Onboarding uses a reviewed local snapshot of [TourKit](https://github.com/rampatra/TourKit), licensed under MIT. The whole app is licensed under [MIT](LICENSE). There is no telemetry, privileged helper or network client.
+See what fills your Mac, inspect cleanup candidates, and review exact paths before moving selected items to Trash.
+
+Husk is an experimental native macOS app built with Swift and SwiftUI. It includes a storage map, app removal, AI storage inspection, and system monitoring. Scans run locally. There is no telemetry, privileged helper, or network client.
+
+The [Husk Source-Available License](LICENSE) permits reading, private builds, private modifications, and private use. It does not grant general redistribution rights. See [licensing](#licensing) for the prior MIT grant and third-party exceptions.
+
+![Husk Storage Map in light appearance, showing example storage data and cleanup recommendations](docs/screenshots/storage-map-light.png)
+
+Real app UI with example data. [Dark appearance](docs/screenshots/storage-map-dark.png).
 
 Requires macOS 14 or later and Xcode 26.2 or later with Swift 6.2. Only the current development machine has been verified. This is not a signed public release or a completed security certification.
 
@@ -34,8 +42,6 @@ Husk keeps its original compact rail, warm amber actions and rounded panels, wit
 
 Storage Map starts in map view and can browse Home, a chosen folder, or a startup disk overview. The overview measures Home, Applications, Library and `/opt` through their normal paths, with a separate System & unmeasured tile for remaining allocation. Protected paths, other users, mounted filesystems, and scan limits remain visible as incomplete coverage. Folder previews are bounded; open a folder for a fresh measurement. Recommendations use Cleanup's existing catalog, selections and reviewed Trash flow. Colors describe storage categories, while cleanup colors come from catalog policy. No new cleanup rules or shell-based deletion are introduced.
 
-Native previews with example data: [light appearance](docs/screenshots/storage-map-light.png) and [dark appearance](docs/screenshots/storage-map-dark.png).
-
 Tests use disposable fixtures and inject the move operation; they never send existing user data to Trash. Build Release with the same command and `-configuration Release`. Run `scripts/verify.sh` for the full local verification sequence, including a universal Release build. Run `scripts/profile-sizing.sh` for an opt-in 100K-entry service memory check using disposable fixtures; its default RSS budget is 160 MiB. This profiles the sizing service, not the full GUI. After a Debug build, run `scripts/ui-smoke.sh` to capture fixture screens in light/dark mode at 960×640 and 1200×720. The local runner requires Screen Recording access, verifies visible control labels, tests scan-to-results table heights with no selection, clicks Select Safe and walks the tour with mouse/keyboard input. It never runs cleanup. Set `HUSK_UI_ASSETS` if Assets.car is outside the default `/tmp/husk-ui-build` location.
 
 ## Safety limits
@@ -46,9 +52,13 @@ Identity checks detect item replacement and root metadata changes, not every edi
 
 See [audit resolution](docs/AUDIT_RESOLUTION.md), [security policy](SECURITY.md), [privacy](docs/PRIVACY.md), and [contributing](CONTRIBUTING.md).
 
-## Open-source status
+## Licensing
 
-The entire app, tests, original documentation, and original artwork use the [MIT license](LICENSE). Development continues on `main`; there is no paid feature gate. See [notices](NOTICE.md) for TourKit and Apple materials. The owner has approved the license and original brand assets; repository publication is a separate maintainer action.
+Husk's original code, tests, scripts, documentation, and artwork use the [Husk Source-Available License 1.0](LICENSE). You may read the source, build it, modify it privately, and use it for personal or internal business purposes. You may not redistribute the source, app binaries, or modified versions under this license, except for the limited contribution permission in its terms. Separate written permission is required for other distribution. This is source-available software, not OSI open source.
+
+The license change does not revoke rights already granted under MIT, including rights to earlier versions and code obtained under that grant. TourKit remains MIT licensed. Apple materials keep their own terms. If the repository is made public on GitHub, GitHub's terms also permit viewing and forking on its service. See [notices](NOTICE.md) and the [licensing guide](docs/LICENSING.md).
+
+Development continues on `main`; there is no paid feature gate. Repository publication and a signed release remain separate maintainer actions.
 
 Read [contributing](CONTRIBUTING.md), the [code of conduct](CODE_OF_CONDUCT.md), and [support](SUPPORT.md) before opening an issue or pull request. Send security and conduct reports privately to [muzamil@mzml.dev](mailto:muzamil@mzml.dev). [Verification](docs/VERIFICATION.md) records checks and remaining distribution gates.
 

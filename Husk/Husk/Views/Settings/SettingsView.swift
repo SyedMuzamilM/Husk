@@ -79,9 +79,9 @@ struct SettingsView: View {
             }
             Section("About Husk") {
                 Text("Native macOS storage review, app removal, and system monitoring. Experimental beta; allocated sizes are estimates, including shared APFS data.")
-                Text("Open source under the MIT license. Built with TourKit.").font(.callout)
+                Text("Source-available for private use and modification. Redistribution is restricted. Built with TourKit.").font(.callout)
                 HStack {
-                    Button("MIT license") { openLicense("Husk-LICENSE") }
+                    Button("Husk license") { openLicense("Husk-LICENSE") }
                     Button("TourKit license") { openLicense("TourKit-LICENSE") }
                 }
                 Link("Source and contributions", destination: URL(string: "https://github.com/SyedMuzamilM/Husk")!)

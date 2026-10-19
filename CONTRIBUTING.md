@@ -1,6 +1,8 @@
 # Contributing to Husk
 
-The entire application, tests, and project documentation are open source under the [MIT license](LICENSE). Contributions you submit for inclusion are licensed under the same terms. You retain copyright in your work. No CLA or mandatory commit sign-off is required. Only contribute material you have the right to license; preserve third-party notices.
+Husk uses the [Husk Source-Available License](LICENSE). You may read, build, and modify it privately. General redistribution of the source, binaries, and modified versions is restricted. The license expressly allows submitting patches and necessary excerpts to the official project. See the [licensing guide](docs/LICENSING.md) for prior MIT rights and GitHub's separate platform terms.
+
+By intentionally submitting a contribution for inclusion, you license your original contribution under the same terms and grant Syed Muzamil the nonexclusive right to use, reproduce, modify, and distribute it as part of Husk under those terms. You retain copyright in your work. No separate CLA or mandatory commit sign-off is required. Only contribute material you have the right to license; preserve third-party notices.
 
 ## Set up
 
@@ -34,7 +36,7 @@ For UI changes, check system/light/dark appearance, keyboard navigation, VoiceOv
 
 ## Submit
 
-Open a pull request against `main` with the problem, resulting behavior, checks run, and any remaining limits. Keep commits focused and include screenshots for visual changes after redacting personal paths. If an API or behavior changes, update its documentation in the same pull request.
+Submit a patch to the official repository, or open a pull request against `main` where repository access and the hosting platform's terms permit it. Include the problem, resulting behavior, checks run, and any remaining limits. The contribution permission does not permit publishing a separate build or a full source mirror. Keep commits focused and include screenshots for visual changes after redacting personal paths. If an API or behavior changes, update its documentation in the same pull request.
 
 Do not commit credentials, signing teams, generated builds, local IDE state, private path logs, or personal screenshots. Use the repository's issue forms for ordinary bugs and feature proposals. Report vulnerabilities privately under [SECURITY.md](SECURITY.md). Participation follows the [code of conduct](CODE_OF_CONDUCT.md).
 

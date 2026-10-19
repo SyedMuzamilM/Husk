@@ -1,6 +1,6 @@
 # Release preparation
 
-Husk is MIT licensed. The repository owner has approved the original brand assets and designated muzamil@mzml.dev for private reports. Repository publication, GitHub settings, and signed distribution remain separate maintainer actions.
+Husk uses the [Husk Source-Available License](../LICENSE). This release procedure is for the copyright holder or a distributor with separate permission; the project license does not grant general redistribution rights. The repository owner has approved the original brand assets and designated muzamil@mzml.dev for private reports. Repository publication, GitHub settings, and signed distribution remain separate maintainer actions. Review [licensing and prior MIT rights](LICENSING.md) before publication.
 
 ## Source verification
 
@@ -31,6 +31,6 @@ export HUSK_NOTARY_PROFILE='your-keychain-profile'
 ./scripts/release.sh
 ```
 
-The script builds a universal app, embeds the MIT license and source revision, signs with Hardened Runtime, verifies the signing team, submits to Apple, staples, assesses, and writes a versioned ZIP plus SHA256SUMS. It does not publish source, create a GitHub release, or install an updater. Real signing/notarization has not been verified without maintainer credentials.
+The script builds a universal app, embeds the Husk license, TourKit's MIT notice, and source revision, signs with Hardened Runtime, verifies the signing team, submits to Apple, staples, assesses, and writes a versioned ZIP plus SHA256SUMS. It does not publish source, create a GitHub release, or install an updater. Real signing/notarization has not been verified without maintainer credentials.
 
 Inspect the result and test Gatekeeper on a clean machine. Publish only artifacts matching a source tag, revision, checksum, minimum OS/toolchain, known limitations, and installation instructions. Keep the previous signed version available. An updater would require signed metadata and a separate security review.

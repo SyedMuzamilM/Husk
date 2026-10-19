@@ -1,21 +1,97 @@
-MIT License
+Husk Source-Available License 1.0
+Effective for this offering: 2026-10-19
 
 Copyright (c) 2026 Syed Muzamil and Husk contributors
+All rights reserved except as expressly granted below.
 
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
+1. Scope
 
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
+This license applies to the original Husk source code, binaries, tests,
+scripts, documentation, and artwork supplied with it (the "Software").
+Separately licensed material is excluded as described in section 5.
+"You" means the individual or organization exercising rights under this
+license. The "Maintainer" is Syed Muzamil, reachable at muzamil@mzml.dev.
+The official project is https://github.com/SyedMuzamilM/Husk.
+
+2. Permission for private use
+
+Subject to these terms, the copyright holders grant you a worldwide,
+nonexclusive, royalty-free license to read and study the Software, make
+private copies, compile it, modify it, and use the original or modified
+Software for your own personal or internal business purposes.
+
+An organization may make copies available to its personnel solely for its
+internal use on devices and systems it controls. Private backups and
+private version-control copies are permitted. Keep the copyright notices,
+this license, and applicable third-party notices in all such copies.
+
+3. No general redistribution permission
+
+Except for section 4 or rights independently available under section 5,
+you may not publish, redistribute, sublicense, sell, rent, lease, or
+otherwise provide the Software, a substantial portion of it, or a modified
+version to others. This restriction applies to source code and compiled
+binaries, free and paid distribution, public mirrors, repackaged apps,
+and inclusion in another distributed product. You may not offer the
+Software's functionality as a hosted service to third parties.
+
+Uses outside the permissions in this license require separate written
+permission from the relevant copyright holders. Contact the Maintainer
+for distribution requests. No trademark or endorsement rights are granted.
+
+4. Contributions to the official project
+
+You may submit patches and excerpts reasonably necessary to report issues
+or propose changes to the official project. This limited permission does
+not authorize distributing full source copies or app binaries elsewhere.
+Hosting-platform permissions, where applicable, are addressed in section 5.
+
+By intentionally submitting an original contribution for inclusion, you
+license it under these terms and additionally grant the Maintainer a
+worldwide, nonexclusive, royalty-free right to use, reproduce, modify,
+and distribute it as part of Husk under this license. You retain copyright
+in your contribution. Submit only material you have the right to license
+on these terms and identify any separately licensed material.
+
+5. Existing rights and third-party material
+
+This license does not revoke, replace, or restrict rights already granted
+under another license. Earlier Husk versions and material obtained under
+the MIT grant remain usable, modifiable, and redistributable under that
+grant's terms. This license does not make previously MIT-licensed material
+exclusive to these new terms.
+
+Third-party components, including TourKit, remain under their own licenses.
+Apple frameworks and SF Symbols remain subject to Apple's terms. Nothing
+here restricts rights to such material under its separate terms.
+
+Nothing here overrides rights separately granted by the copyright holders
+under a hosting platform's terms. If the Maintainer publishes the project
+on GitHub, GitHub's applicable viewing and on-platform forking rights
+continue to apply. Those separate rights do not themselves grant general
+off-platform redistribution or app distribution rights under this license.
+
+6. Termination
+
+The permissions granted by this license terminate if you violate its
+terms. On termination, cease exercising rights that depend on this license
+and remove copies whose retention depends solely on it. Termination does
+not affect independent rights described in section 5 or licenses already
+granted for contributions. Sections 3, 5, 7, and 8 survive termination.
+
+7. No warranty
 
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
 IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+
+8. Limitation of liability
+
+TO THE MAXIMUM EXTENT PERMITTED BY APPLICABLE LAW, IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES, OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT, OR OTHERWISE, ARISING
+FROM, OUT OF, OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+DEALINGS IN THE SOFTWARE.
+
+This is a source-available license. It is not an open-source license
+approved by the Open Source Initiative.
