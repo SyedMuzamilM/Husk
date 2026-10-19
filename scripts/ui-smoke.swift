@@ -47,7 +47,24 @@ import ScreenCaptureKit
         worktreeAI.worktrees = [GitWorktree(path: "/Users/demo/Projects/working-copy", branch: "refs/heads/example",
                                           locked: true, prunable: false, bare: false, status: "Contains changes or untracked files")]
         let analyze = AnalyzeViewModel()
-        analyze.root = DiskNode(name: "Projects", path: "/Users/demo/Projects", isDirectory: true, byteCount: 3_040_000_000, children: [DiskNode(name: "Design workspace", path: "/Users/demo/Projects/Design workspace", isDirectory: true, byteCount: 2_190_000_000), DiskNode(name: "Archive.zip", path: "/Users/demo/Projects/Archive.zip", isDirectory: false, byteCount: 850_000_000)])
+        analyze.capacity = DiskCapacity(totalBytes: 500_000_000_000, availableBytes: 38_000_000_000)
+        analyze.root = DiskNode(name: "Home", path: "/Users/demo", isDirectory: true, byteCount: 135_000_000_000, children: [
+            DiskNode(name: "Desktop", path: "/Users/demo/Desktop", isDirectory: true, byteCount: 41_000_000_000, children: [
+                DiskNode(name: "atlas", path: "/Users/demo/Desktop/atlas", isDirectory: true, byteCount: 16_000_000_000),
+                DiskNode(name: "pebble", path: "/Users/demo/Desktop/pebble", isDirectory: true, byteCount: 8_000_000_000),
+                DiskNode(name: "orbit", path: "/Users/demo/Desktop/orbit", isDirectory: true, byteCount: 7_000_000_000)]),
+            DiskNode(name: "Library", path: "/Users/demo/Library", isDirectory: true, byteCount: 34_000_000_000, children: [
+                DiskNode(name: "CoreSimulator", path: "/Users/demo/Library/Developer/CoreSimulator", isDirectory: true, byteCount: 14_000_000_000),
+                DiskNode(name: "Android SDK", path: "/Users/demo/Library/Android", isDirectory: true, byteCount: 12_000_000_000),
+                DiskNode(name: "DerivedData", path: cache.path, isDirectory: true, byteCount: cache.byteCount)]),
+            DiskNode(name: "Projects", path: "/Users/demo/Projects", isDirectory: true, byteCount: 30_000_000_000, children: [
+                DiskNode(name: "Design workspace", path: "/Users/demo/Projects/design", isDirectory: true, byteCount: 18_000_000_000),
+                DiskNode(name: "Mobile app", path: "/Users/demo/Projects/mobile", isDirectory: true, byteCount: 12_000_000_000)]),
+            DiskNode(name: ".android", path: "/Users/demo/.android", isDirectory: true, byteCount: 18_000_000_000),
+            DiskNode(name: ".gradle", path: "/Users/demo/.gradle", isDirectory: true, byteCount: 8_000_000_000),
+            DiskNode(name: "npm cache", path: safe.path, isDirectory: true, byteCount: safe.byteCount),
+            DiskNode(name: "Downloads", path: "/Users/demo/Downloads", isDirectory: true, byteCount: 3_000_000_000)
+        ])
         let apps = AppsViewModel()
         let app = AppEntry(id: "demo", name: "Example Editor", path: "/Applications/Example.app", bundleIdentifier: "dev.example.Editor", version: "2.4", byteCount: 480_000_000, isFromSystem: false, completeness: .complete)
         apps.apps = [app]; apps.selectedApp = app
@@ -76,8 +93,8 @@ import ScreenCaptureKit
             ("ai-unselected", AnyView(AIStorageView(model: uninspectedAI)), "Codex"),
             ("ai-sessions", AnyView(AIStorageView(model: sessionAI)), "Gemini"),
             ("ai-worktrees", AnyView(AIStorageView(model: worktreeAI)), "Registered worktrees"),
-            ("storage-start", AnyView(AnalyzeView(model: AnalyzeViewModel())), "Choose folder"),
-            ("storage-results", AnyView(AnalyzeView(model: analyze)), "Refresh"),
+            ("storage-start", AnyView(AnalyzeView(model: AnalyzeViewModel(), cleanup: clean)), "Choose folder"),
+            ("storage-results", AnyView(AnalyzeView(model: analyze, cleanup: clean)), "Desktop"),
             ("applications", AnyView(AppsView(model: apps)), "Review removal"),
             ("applications-unselected", AnyView(AppsView(model: uninspectedApps)), "Example Editor"),
             ("status", AnyView(StatusView(model: status)), "Search process name or PID"),
@@ -138,6 +155,21 @@ import ScreenCaptureKit
                         precondition(clean.selectedIDs.contains(safe.id), "Native Select Safe action did not update selection")
                         clean.clearSelection()
                         print("PASS native Select Safe mouse action")
+                    }
+                    if name == "storage-results", appearance == "light", width == 960 {
+                        try await clickLabel("Select Safe", in: window)
+                        precondition(clean.selectedIDs == [safe.id], "Map recommendations selected an unsafe item")
+                        let selection = NSBitmapImageRep(cgImage: try await capture(window))
+                        try selection.representation(using: .png, properties: [:])!.write(to: output.appendingPathComponent("storage-selected-light-960.png"))
+                        clean.clearSelection()
+                        try await clickLabel("Cleanup", in: window)
+                        let cleanupColors = NSBitmapImageRep(cgImage: try await capture(window))
+                        try cleanupColors.representation(using: .png, properties: [:])!.write(to: output.appendingPathComponent("storage-cleanup-colors-light-960.png"))
+                        try await clickLabel("Category", in: window)
+                        try await clickLabel("List", in: window)
+                        precondition(descendants(hosting).contains { $0 is NSTableView }, "Map list toggle did not show a table")
+                        try await clickLabel("Map", in: window)
+                        print("PASS storage recommendation selection and map/list controls")
                     }
                     print("PASS \(name) \(appearance) \(Int(width)) native window capture" + (!observations.isEmpty ? " and visible control text" : ""))
                     fflush(stdout)
@@ -235,7 +267,8 @@ import ScreenCaptureKit
                 apps.isLoadingApps = false
             }
             let analyze = AnalyzeViewModel()
-            try await verifyLoadedTable("storage", content: AnyView(AnalyzeView(model: analyze)), section: .analyze, width: width,
+            let clean = CleanViewModel()
+            try await verifyLoadedTable("storage", content: AnyView(AnalyzeView(model: analyze, cleanup: clean)), section: .analyze, width: width,
                                         expected: "Design workspace", permissions: permissions, output: output) {
                 analyze.root = DiskNode(name: "Projects", path: "/Users/demo/Projects", isDirectory: true, byteCount: 1_000_000_000,
                     children: [DiskNode(name: "Design workspace", path: "/Users/demo/Projects/Design workspace", isDirectory: true, byteCount: 1_000_000_000)])
@@ -269,6 +302,10 @@ import ScreenCaptureKit
         try await Task.sleep(for: .milliseconds(250))
         controller.view.layoutSubtreeIfNeeded()
         try await requireText(expected, in: window)
+        if name == "storage" {
+            try await clickLabel("List", in: window)
+            try await Task.sleep(for: .milliseconds(150))
+        }
         guard let table = descendants(controller.view).compactMap({ $0 as? NSTableView }).first,
               (table.enclosingScrollView?.contentView.bounds.height ?? 0) >= 180 else {
             throw NSError(domain: "UISmoke", code: 9, userInfo: [NSLocalizedDescriptionKey: name + " table collapsed after data arrived"])
@@ -405,7 +442,8 @@ import ScreenCaptureKit
     }
 
     @MainActor static func click(_ text: String, observations: [TextObservation], window: NSWindow) throws {
-        guard let observation = observations.first(where: { $0.text.localizedCaseInsensitiveContains(text) }),
+        guard let observation = observations.first(where: { normalized($0.text) == normalized(text) })
+                ?? observations.first(where: { $0.text.localizedCaseInsensitiveContains(text) }),
               let content = window.contentView else {
             throw NSError(domain: "UISmoke", code: 2, userInfo: [NSLocalizedDescriptionKey: "Missing click target " + text])
         }

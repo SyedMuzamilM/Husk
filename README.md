@@ -8,7 +8,7 @@ Requires macOS 14 or later and Xcode 26.2 or later with Swift 6.2. Only the curr
 
 - Cleanup table with search, risk filters, an inspector, and explicit path review.
 - Shared, serialized removal plans with expiry, file identity checks, exclusions, known running-app checks, and per-item outcomes.
-- Disk analysis with folder picker, list and treemap views, hidden files, and complete/partial/unavailable allocated-size estimates.
+- Storage overview with actual free capacity, a nested category/cleanup treemap, shared cleanup recommendations, folder navigation, list view, and complete/partial/unavailable allocated-size estimates.
 - Nested app discovery and exact bundle-ID data associations. Shared group containers and fuzzy name matches are excluded; personal data requires acknowledgement.
 - CPU, estimated memory, pressure/swap when available, actual volume free capacity, and process CPU/RSS. Quit requests revalidate process identity and user ownership.
 - Quick Look troubleshooting, system/light/dark appearance, persistent exclusions, and optional local operation history.
@@ -31,6 +31,10 @@ open /tmp/husk-build/Build/Products/Debug/Husk.app
 Unsigned local builds may need macOS privacy permissions. Full Disk Access is optional for limited scans. The app deliberately excludes credentials and cloud locations even when broad read access is available. No administrator password is needed.
 
 Husk keeps its original compact rail, warm amber actions and rounded panels, with system, light and dark appearance. AI Storage inventories recognized caches, sessions, working copies, models and installed tools. Only verified cache leaves can be selected for reviewed cleanup. Sessions, model weights, worktrees and version stores remain inspection-only. See [AI storage policy and sources](docs/AI_STORAGE.md) and the [roadmap](docs/ROADMAP.md).
+
+Storage Map starts in map view and can browse Home, a chosen folder, or a startup disk overview. The overview measures Home, Applications, Library and `/opt` through their normal paths, with a separate System & unmeasured tile for remaining allocation. Protected paths, other users, mounted filesystems, and scan limits remain visible as incomplete coverage. Folder previews are bounded; open a folder for a fresh measurement. Recommendations use Cleanup's existing catalog, selections and reviewed Trash flow. Colors describe storage categories, while cleanup colors come from catalog policy. No new cleanup rules or shell-based deletion are introduced.
+
+Native previews with example data: [light appearance](docs/screenshots/storage-map-light.png) and [dark appearance](docs/screenshots/storage-map-dark.png).
 
 Tests use disposable fixtures and inject the move operation; they never send existing user data to Trash. Build Release with the same command and `-configuration Release`. Run `scripts/verify.sh` for the full local verification sequence, including a universal Release build. Run `scripts/profile-sizing.sh` for an opt-in 100K-entry service memory check using disposable fixtures; its default RSS budget is 160 MiB. This profiles the sizing service, not the full GUI. After a Debug build, run `scripts/ui-smoke.sh` to capture fixture screens in light/dark mode at 960×640 and 1200×720. The local runner requires Screen Recording access, verifies visible control labels, tests scan-to-results table heights with no selection, clicks Select Safe and walks the tour with mouse/keyboard input. It never runs cleanup. Set `HUSK_UI_ASSETS` if Assets.car is outside the default `/tmp/husk-ui-build` location.
 

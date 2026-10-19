@@ -7,6 +7,7 @@ final class AnalyzeViewModel {
     var removalResult: TrashResult?
     var includeHidden = true
     var root: DiskNode?
+    var capacity: DiskCapacity?
     var pathStack: [DiskNode] = []
     var isLoading = false
     private(set) var isPreparing = false
@@ -16,17 +17,21 @@ final class AnalyzeViewModel {
     var selectedRootPath: String = NSHomeDirectory()
 
     private var generation = UUID()
+    @ObservationIgnored private var capacities: [UUID: DiskCapacity] = [:]
     private var task: Task<Void, Never>?
     private let load: @Sendable (String, Bool) async throws -> DiskNode
     private let executeRemoval: @Sendable (RemovalPlan) async throws -> TrashResult
+    private let readCapacity: @Sendable (String) async throws -> DiskCapacity
 
     init(load: @escaping @Sendable (String, Bool) async throws -> DiskNode = {
         try await DiskAnalyzer().expand(path: $0, includeHidden: $1)
-    }, executeRemoval: @escaping @Sendable (RemovalPlan) async throws -> TrashResult = {
+    }, capacity: @escaping @Sendable (String) async throws -> DiskCapacity = { try await DiskCapacity.read(at: $0 == "/" ? NSHomeDirectory() : $0) },
+    executeRemoval: @escaping @Sendable (RemovalPlan) async throws -> TrashResult = {
         try await RemovalService.shared.execute($0)
     }) {
         self.load = load
         self.executeRemoval = executeRemoval
+        self.readCapacity = capacity
     }
 
     var current: DiskNode? { pathStack.last ?? root }
@@ -42,11 +47,20 @@ final class AnalyzeViewModel {
     }
 
     func drill(into node: DiskNode) {
-        guard node.isDirectory, !isPreparing, !isRemoving else { return }
-        beginLoad(path: node.path, append: true)
+        guard node.isDirectory, !node.isAggregate, !isPreparing, !isRemoving else { return }
+        let trail = current.flatMap { Self.trail(to: node.id, in: $0) } ?? [node]
+        beginLoad(path: node.path, append: true, intermediateNodes: Array(trail.dropLast()))
     }
 
-    private func beginLoad(path: String, append: Bool) {
+    private static func trail(to id: UUID, in root: DiskNode) -> [DiskNode]? {
+        for child in root.children {
+            if child.id == id { return [child] }
+            if let nested = trail(to: id, in: child) { return [child] + nested }
+        }
+        return nil
+    }
+
+    private func beginLoad(path: String, append: Bool, intermediateNodes: [DiskNode] = []) {
         task?.cancel()
         let run = UUID()
         generation = run
@@ -56,13 +70,22 @@ final class AnalyzeViewModel {
         statusText = "\(append ? "Opening" : "Scanning") \(URL(fileURLWithPath: path).lastPathComponent)…"
         let load = load
         let hidden = includeHidden
+        let readCapacity = readCapacity
         task = Task { [weak self] in
             do {
                 try Task.checkCancellation()
+                async let volume = try? await readCapacity(path)
                 let node = try await load(path, hidden)
+                let capacity = await volume
                 guard let self, generation == run, !Task.isCancelled else { return }
-                if append { pathStack.append(node) }
-                else { root = node; pathStack = [] }
+                if append {
+                    for parent in intermediateNodes { capacities[parent.id] = self.capacity }
+                    pathStack.append(contentsOf: intermediateNodes)
+                    pathStack.append(node)
+                }
+                else { root = node; pathStack = []; capacities = [:] }
+                self.capacity = capacity
+                capacities[node.id] = capacity
                 statusText = summary(node)
                 isLoading = false
                 task = nil
@@ -90,7 +113,7 @@ final class AnalyzeViewModel {
         cancel()
         if index <= 0 { pathStack = [] }
         else if index <= pathStack.count { pathStack = Array(pathStack.prefix(index)) }
-        if let current { statusText = summary(current) }
+        if let current { statusText = summary(current); capacity = capacities[current.id] }
     }
 
     private func summary(_ node: DiskNode) -> String {
